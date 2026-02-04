@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import * as api from '../services/api';
-const settingsAPI = (api as any).settingsAPI;
+import { settingsAPI, socialMediaAPI } from '../services/api';
 
 interface Settings {
   website_name?: string;
@@ -18,36 +17,62 @@ interface Settings {
   maintenance_mode?: boolean;
 }
 
+export interface SocialLink {
+  id: number;
+  platform: string;
+  url: string;
+  icon: string;
+  sort_order: number;
+}
+
 export const useSettings = () => {
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const data = await settingsAPI.getSettings();
-        setSettings(data);
-        
-        // Update document title and meta description
-        if (data.website_title) {
-          document.title = data.website_title;
-        } else if (data.website_name) {
-          document.title = data.website_name;
+        const [settingsData, socialData] = await Promise.all([
+          settingsAPI.getSettings().catch(err => {
+            console.error('Error fetching settings:', err);
+            return null;
+          }),
+          socialMediaAPI.getAll().catch(err => {
+            console.error('Error fetching social links:', err);
+            return [];
+          })
+        ]);
+
+        if (settingsData) {
+          setSettings(settingsData);
+
+          // Update document title and meta description
+          if (settingsData.website_title) {
+            document.title = settingsData.website_title;
+          } else if (settingsData.website_name) {
+            document.title = settingsData.website_name;
+          }
+
+          // Update meta description if it exists
+          const metaDescription = document.querySelector('meta[name="description"]');
+          if (metaDescription && settingsData.website_description) {
+            metaDescription.setAttribute('content', settingsData.website_description);
+          } else if (!metaDescription && settingsData.website_description) {
+            // Create meta description if it doesn't exist
+            const newMeta = document.createElement('meta');
+            newMeta.name = 'description';
+            newMeta.content = settingsData.website_description;
+            document.head.appendChild(newMeta);
+          }
         }
-        
-        // Update meta description if it exists
-        const metaDescription = document.querySelector('meta[name="description"]');
-        if (metaDescription && data.website_description) {
-          metaDescription.setAttribute('content', data.website_description);
-        } else if (!metaDescription && data.website_description) {
-          // Create meta description if it doesn't exist
-          const newMeta = document.createElement('meta');
-          newMeta.name = 'description';
-          newMeta.content = data.website_description;
-          document.head.appendChild(newMeta);
+
+        if (socialData) {
+          setSocialLinks(socialData);
         }
+
       } catch (error) {
-        console.error('Error fetching settings:', error);
+        console.error('Error fetching app data:', error);
       } finally {
         setLoading(false);
       }
@@ -56,5 +81,5 @@ export const useSettings = () => {
     fetchSettings();
   }, []);
 
-  return { settings, loading };
+  return { settings, socialLinks, loading };
 };

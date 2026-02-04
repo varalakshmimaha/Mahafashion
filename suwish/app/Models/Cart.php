@@ -15,9 +15,15 @@ class Cart extends Model
         'user_id',
         'product_id',
         'quantity',
+        'price',
         'selected_color',
         'selected_size',
         'blouse_option',
+    ];
+    
+    protected $casts = [
+        'quantity' => 'integer',
+        'price' => 'decimal:2',
     ];
     
     public function user()

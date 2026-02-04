@@ -50,8 +50,10 @@ export interface ProductVariant {
   color_name: string;
   size: string;
   stock: number;
+  price?: number;
   price_adjustment: number;
   sku: string | null;
+  images?: string[]; // Images for this color variant
   created_at: string;
   updated_at: string;
 }
@@ -85,6 +87,8 @@ export interface SareeProduct {
   fabricType?: string | null;
   brand?: string | null;
   discount?: number;
+  final_price?: number; // Price after discount (what customer pays)
+  discounted_price?: number; // Alias for final_price
   colors?: ProductColor[]; // Array of color variants with their images (legacy)
   images?: ProductImage[]; // New: Database product images
   variants?: ProductVariant[]; // New: Database product variants
@@ -100,6 +104,7 @@ export interface CartItem {
   selectedColor: string;
   selectedSize?: string;
   blouseOption: string;
+  price?: number;
 }
 
 export interface FilterState {
@@ -110,13 +115,18 @@ export interface FilterState {
   sortBy: 'price-low-high' | 'price-high-low' | 'newest';
 }
 
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  phone?: string;
-  is_admin?: boolean;
-  addresses: Address[];
+id: string;
+name: string;
+email: string;
+phone ?: string;
+is_admin ?: boolean;
+addresses: Address[];
+shipping_name ?: string;
+shipping_phone ?: string;
+shipping_address ?: string;
+shipping_city ?: string;
+shipping_state ?: string;
+shipping_pincode ?: string;
 }
 
 export interface Address {

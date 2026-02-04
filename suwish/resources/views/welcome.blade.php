@@ -4,7 +4,45 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
-        <title>Laravel</title>
+        <title>{{ isset($theme) ? $theme->name : 'Laravel' }}</title>
+
+        @if(isset($theme))
+        <style>
+            :root {
+                --theme-primary: {{ $theme->primary_color }};
+                --theme-secondary: {{ $theme->secondary_color }};
+                --theme-button: {{ $theme->button_color ?: $theme->primary_color }};
+                --theme-text: {{ $theme->text_color }};
+                --theme-bg: {{ $theme->background_color }};
+                --theme-font: {!! $theme->font_family !!};
+                --theme-radius: {{ $theme->border_radius }};
+            }
+            body {
+                font-family: var(--theme-font) !important;
+                color: var(--theme-text) !important;
+                background-color: var(--theme-bg) !important;
+            }
+            /* Apply to typical elements */
+            button, .button, .btn {
+                background-color: var(--theme-button) !important;
+                border-radius: var(--theme-radius) !important;
+                color: #ffffff !important;
+            }
+            h1, h2, h3, h4, h5, h6 {
+                color: var(--theme-primary) !important;
+            }
+            a {
+                color: var(--theme-primary);
+            }
+            /* Override tailwind/default colors where necessary */
+            .bg-gray-100, .dark\:bg-gray-900 {
+                background-color: var(--theme-bg) !important;
+            }
+            .text-gray-900, .dark\:text-white {
+                color: var(--theme-text) !important;
+            }
+        </style>
+        @endif
 
         <!-- Fonts -->
         <link href="https://fonts.bunny.net/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
@@ -20,14 +58,15 @@
             }
         </style>
     </head>
-    <body class="antialiased">
+    <body class="antialiased {{ isset($theme) ? 'theme-header-'.$theme->header_style . ' theme-footer-'.$theme->footer_style : '' }}">
         <div class="relative flex items-top justify-center min-h-screen bg-gray-100 dark:bg-gray-900 sm:items-center py-4 sm:pt-0">
             @if (Route::has('login'))
                 <div class="hidden fixed top-0 right-0 px-6 py-4 sm:block">
                     @auth
                         <a href="{{ url('/home') }}" class="text-sm text-gray-700 dark:text-gray-500 underline">Home</a>
                     @else
-                        <a href="{{ route('login') }}" class="text-sm text-gray-700 dark:text-gray-500 underline">Log in</a>
+                        <a href="{{ route('admin.login') }}" class="text-sm text-gray-700 dark:text-gray-500 underline">Admin Login</a>
+                        <a href="{{ route('login') }}" class="ml-4 text-sm text-gray-700 dark:text-gray-500 underline">Log in</a>
 
                         @if (Route::has('register'))
                             <a href="{{ route('register') }}" class="ml-4 text-sm text-gray-700 dark:text-gray-500 underline">Register</a>

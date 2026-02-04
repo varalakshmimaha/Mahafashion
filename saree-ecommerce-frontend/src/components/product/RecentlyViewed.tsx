@@ -118,7 +118,7 @@ const RecentlyViewed: React.FC<RecentlyViewedProps> = ({ currentProductId }) => 
     }
 
     return (
-        <section className="mt-16 pt-12 border-t border-gray-100">
+        <section className="mt-16 pt-12 border-t border-gray-100 recently-viewed">
             <div className="flex items-center justify-between mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
                     <Eye className="text-maroon-600" size={24} />

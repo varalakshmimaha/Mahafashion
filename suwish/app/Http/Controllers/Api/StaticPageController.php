@@ -8,34 +8,24 @@ use Illuminate\Support\Facades\Validator;
 
 class StaticPageController extends Controller
 {
-    /**
-     * Display the specified static page content.
-     *
-     * @param string $name
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function show(string $name)
+    // Admin: list all static pages
+    public function index()
     {
-        $page = StaticPage::where('name', $name)->first();
-
-        if (!$page) {
-            return response()->json(['message' => 'Page not found'], 404);
-        }
-
-        return response()->json($page);
+        $pages = StaticPage::orderBy('sort_order', 'asc')->get();
+        return response()->json($pages);
     }
 
-    /**
-     * Update the specified static page content in storage.
-     *
-     * @param \Illuminate\Http\Request $request
-     * @param string $name
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function update(Request $request, string $name)
+    // Admin: create a new static page
+    public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
+            'name' => 'required|string|unique:static_pages,name|max:255',
+            'slug' => 'required|string|unique:static_pages,slug|max:255',
+            'title' => 'required|string|max:255',
             'content' => 'nullable|string',
+            'meta_title' => 'nullable|string|max:255',
+            'meta_description' => 'nullable|string',
+            'status' => 'nullable|in:draft,published',
             'sort_order' => 'nullable|integer',
         ]);
 
@@ -43,22 +33,85 @@ class StaticPageController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $page = StaticPage::where('name', $name)->first();
-        
+        $page = StaticPage::create([
+            'name' => $request->name,
+            'slug' => $request->slug,
+            'title' => $request->title,
+            'content' => $request->content,
+            'meta_title' => $request->meta_title,
+            'meta_description' => $request->meta_description,
+            'status' => $request->status ?? 'draft',
+            'sort_order' => $request->sort_order ?? 0,
+        ]);
+
+        return response()->json($page, 201);
+    }
+
+    /**
+     * Display the specified static page (public).
+     * Only published pages are returned to public callers.
+     */
+    public function show(string $slug)
+    {
+        $page = StaticPage::where('slug', $slug)->first();
+
         if (!$page) {
             return response()->json(['message' => 'Page not found'], 404);
         }
-        
-        if ($request->has('content')) {
-            $page->content = $request->content;
+
+        // If the page is not published, return 404 for public consumers
+        if ($page->status !== 'published') {
+            return response()->json(['message' => 'Page not found'], 404);
         }
-        
-        if ($request->has('sort_order')) {
-            $page->sort_order = $request->sort_order;
+
+        return response()->json([
+            'title' => $page->title,
+            'content' => $page->content,
+            'meta_title' => $page->meta_title,
+            'meta_description' => $page->meta_description,
+            'slug' => $page->slug,
+        ]);
+    }
+
+    // Admin: update a static page (by slug)
+    public function update(Request $request, string $slug)
+    {
+        $page = StaticPage::where('slug', $slug)->first();
+        if (!$page) {
+            return response()->json(['message' => 'Page not found'], 404);
         }
-        
+
+        $validator = Validator::make($request->all(), [
+            'name' => 'nullable|string|unique:static_pages,name,' . $page->id,
+            'slug' => 'nullable|string|unique:static_pages,slug,' . $page->id,
+            'title' => 'nullable|string|max:255',
+            'content' => 'nullable|string',
+            'meta_title' => 'nullable|string|max:255',
+            'meta_description' => 'nullable|string',
+            'status' => 'nullable|in:draft,published',
+            'sort_order' => 'nullable|integer',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $data = $request->only(['name', 'slug', 'title', 'content', 'meta_title', 'meta_description', 'status', 'sort_order']);
+        $page->fill(array_filter($data, function ($v) { return $v !== null; }));
         $page->save();
 
         return response()->json($page);
+    }
+
+    // Admin: delete a page
+    public function destroy($id)
+    {
+        $page = StaticPage::find($id);
+        if (!$page) {
+            return response()->json(['message' => 'Page not found'], 404);
+        }
+
+        $page->delete();
+        return response()->json(['message' => 'Page deleted']);
     }
 }

@@ -8,6 +8,7 @@ interface AuthContextType {
   login: (phone: string, pass: string) => Promise<any>;
   register: (userData: any) => Promise<any>;
   logout: () => void;
+  updateUser: (userData: User) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -60,6 +61,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const updateUser = (userData: User) => {
+    setUser(userData);
+    localStorage.setItem('user', JSON.stringify(userData));
+  };
+
   const logout = async () => {
     try {
       // Call the API to logout on the server side
@@ -82,6 +88,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         login,
         register,
         logout,
+        updateUser,
       }}
     >
       {children}

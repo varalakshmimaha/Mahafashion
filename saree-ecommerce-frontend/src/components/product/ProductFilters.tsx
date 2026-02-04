@@ -1,4 +1,4 @@
-import React from 'react';
+
 
 const ProductFilters = () => {
     // Mock data for filters

@@ -5,132 +5,106 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Theme;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
 
 class ThemeController extends Controller
 {
-    /**
-     * Display a listing of themes.
-     */
     public function index()
     {
-        // Return active theme first, then others by date
-        $themes = Theme::orderByRaw("FIELD(status, 'active') DESC")
-                       ->orderBy('created_at', 'desc')
-                       ->get();
-        return response()->json($themes);
+        return Theme::all();
     }
 
-    /**
-     * Get the currently active theme for frontend application.
-     */
-    public function getActiveTheme()
+    public function show($id)
     {
-        $theme = Theme::where('status', 'active')->first();
-        
-        if (!$theme) {
-            return response()->json(['message' => 'No active theme found'], 404);
-        }
-        
-        return response()->json($theme);
+        return Theme::findOrFail($id);
     }
 
-    /**
-     * Store a newly created theme.
-     */
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
+        $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'primary_color' => 'required|regex:/^#[0-9A-Fa-f]{6}$/',
-            'secondary_color' => 'required|regex:/^#[0-9A-Fa-f]{6}$/',
-            'accent_color' => 'required|regex:/^#[0-9A-Fa-f]{6}$/',
-            'danger_color' => 'required|regex:/^#[0-9A-Fa-f]{6}$/',
-            'status' => 'in:active,inactive'
+            'primary_color' => 'required|string',
+            'secondary_color' => 'required|string',
+            'accent_color' => 'required|string',
+            'success_color' => 'required|string',
+            'warning_color' => 'required|string',
+            'danger_color' => 'required|string',
+            'button_color' => 'nullable|string',
+            'button_hover_color' => 'nullable|string',
+            'button_text_color' => 'nullable|string',
+            'border_radius' => 'nullable|string',
+            'button_font_size' => 'nullable|string',
+            'button_font_weight' => 'nullable|string',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
-
-        $data = $request->all();
-        $data['status'] = $request->status ?? 'inactive';
-
-        $theme = DB::transaction(function () use ($data) {
-            // If setting as active, deactivate all others first
-            if ($data['status'] === 'active') {
-                Theme::where('status', 'active')->update(['status' => 'inactive']);
-            }
-            
-            return Theme::create($data);
-        });
+        $theme = Theme::create($request->all());
 
         return response()->json($theme, 201);
     }
 
-    /**
-     * Update the specified theme.
-     */
     public function update(Request $request, $id)
     {
         $theme = Theme::findOrFail($id);
-
-        $validator = Validator::make($request->all(), [
-            'name' => 'sometimes|string|max:255',
-            'primary_color' => 'sometimes|regex:/^#[0-9A-Fa-f]{6}$/',
-            'secondary_color' => 'sometimes|regex:/^#[0-9A-Fa-f]{6}$/',
-            'accent_color' => 'sometimes|regex:/^#[0-9A-Fa-f]{6}$/',
-            'danger_color' => 'sometimes|regex:/^#[0-9A-Fa-f]{6}$/',
-            'status' => 'in:active,inactive'
+        
+        $validated = $request->validate([
+            'name' => 'sometimes|required|string|max:255',
+            'primary_color' => 'sometimes|required|string',
+            // Allow loose validation for updates
         ]);
 
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
-
-        $data = $request->all();
-
-        DB::transaction(function () use ($theme, $data) {
-            // If activating this theme, deactivate others
-            if (isset($data['status']) && $data['status'] === 'active' && $theme->status !== 'active') {
-                Theme::where('status', 'active')->update(['status' => 'inactive']);
-            }
-            
-            $theme->update($data);
-        });
+        $theme->update($request->all());
 
         return response()->json($theme);
     }
 
-    /**
-     * Activate a specific theme.
-     */
-    public function activate($id)
-    {
-        $theme = Theme::findOrFail($id);
-
-        DB::transaction(function () use ($theme) {
-            Theme::where('status', 'active')->update(['status' => 'inactive']);
-            $theme->update(['status' => 'active']);
-        });
-
-        return response()->json(['message' => 'Theme activated successfully', 'theme' => $theme]);
-    }
-
-    /**
-     * Remove the specified theme.
-     */
     public function destroy($id)
     {
         $theme = Theme::findOrFail($id);
-
-        if ($theme->status === 'active') {
-            return response()->json(['error' => 'Cannot delete the active theme. Please activate another theme first.'], 400);
+        
+        if ($theme->is_active) {
+            return response()->json(['message' => 'Cannot delete active theme'], 400);
         }
 
         $theme->delete();
 
         return response()->json(['message' => 'Theme deleted successfully']);
+    }
+
+    public function getActive(Request $request)
+    {
+        $theme = Theme::where('is_active', true)->first();
+
+        // If no active theme found, return a default structure
+        if (!$theme) {
+            return response()->json([
+                'id' => null,
+                'name' => 'Default',
+                'primary_color' => '#6366f1',
+                'secondary_color' => '#8b5cf6',
+                'accent_color' => '#ec4899',
+                'success_color' => '#10b981',
+                'warning_color' => '#f59e0b',
+                'danger_color' => '#ef4444',
+                'button_color' => '#6366f1',
+                'text_color' => '#1f2937',
+                'background_color' => '#ffffff',
+                'font_family' => 'Inter, sans-serif',
+                'border_radius' => '0.375rem',
+            ]);
+        }
+
+        return response()->json($theme);
+    }
+
+    public function activate(Request $request, $id)
+    {
+        $theme = Theme::findOrFail($id);
+
+        // The model observer handles deactivating others, but let's be explicit
+        // Theme::where('is_active', true)->update(['is_active' => false]);
+
+        $theme->is_active = true;
+        $theme->save();
+
+        return response()->json($theme);
     }
 }

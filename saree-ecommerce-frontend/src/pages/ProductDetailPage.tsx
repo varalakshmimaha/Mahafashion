@@ -4,7 +4,7 @@ import ProductGallery from '../components/product/ProductGallery';
 import ProductInfo from '../components/product/ProductInfo';
 import ColorSelector from '../components/product/ColorSelector';
 import SizeSelector from '../components/product/SizeSelector';
-import BlouseOptions from '../components/product/BlouseOptions';
+
 import AddToCart from '../components/product/AddToCart';
 import TabsComponent from '../components/product/TabsComponent';
 import Breadcrumb from '../components/ui/Breadcrumb';
@@ -28,14 +28,14 @@ const ProductDetailPage = () => {
                     const response = await productAPI.getProductById(id);
                     setProduct(response);
                     setLoading(false);
-                    
+
                     // Add to recently viewed
                     addToRecentlyViewed(id);
-                    
+
                     // Set default selected color from database variants
                     if (response.variants && response.variants.length > 0) {
                         // Get the first color with stock
-                        const firstAvailableVariant = response.variants.find(v => v.stock > 0);
+                        const firstAvailableVariant = response.variants.find((v: any) => v.stock > 0);
                         if (firstAvailableVariant) {
                             setSelectedColorCode(firstAvailableVariant.color_code);
                         } else {
@@ -62,63 +62,43 @@ const ProductDetailPage = () => {
         window.scrollTo(0, 0);
     }, [id]);
 
-    // Auto-select first available size when color changes
-    useEffect(() => {
-        if (product?.variants && selectedColorCode) {
-            const colorVariants = product.variants.filter(v => v.color_code === selectedColorCode);
-            if (colorVariants.length > 0) {
-                // Try to select first variant with stock
-                const availableVariant = colorVariants.find(v => v.stock > 0);
-                if (availableVariant) {
-                    setSelectedSize(availableVariant.size);
-                } else {
-                    // No stock available, select first size anyway
+    // Explicit Color Click Handler
+    const handleColorSelect = (colorCode: string) => {
+        setSelectedColorCode(colorCode);
+
+        // Instant Size Update Logic
+        if (product?.variants) {
+            const colorVariants = product.variants.filter(v => v.color_code === colorCode);
+
+            // 1. Try to find the first size with STOCK > 0
+            const firstAvailableVariant = colorVariants.find(v => v.stock > 0);
+
+            if (firstAvailableVariant) {
+                setSelectedSize(firstAvailableVariant.size);
+            } else {
+                // 2. If all out of stock, just pick the first one (disabled in UI anyway)
+                if (colorVariants.length > 0) {
                     setSelectedSize(colorVariants[0].size);
+                } else {
+                    setSelectedSize('');
                 }
             }
         }
-    }, [selectedColorCode, product]);
+    };
 
     // Scroll to reviews tab
     const scrollToReviews = () => {
         if (tabsRef.current) {
             tabsRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            // After scrolling, we could also trigger the reviews tab
         }
     };
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gray-50">
-                <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                    {/* Skeleton Loader */}
-                    <div className="animate-pulse">
-                        <div className="h-4 bg-gray-200 rounded w-48 mb-8"></div>
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-                            <div className="space-y-4">
-                                <div className="aspect-[3/4] bg-gray-200 rounded-xl"></div>
-                                <div className="flex gap-3">
-                                    {[...Array(5)].map((_, i) => (
-                                        <div key={i} className="w-16 h-16 bg-gray-200 rounded-lg"></div>
-                                    ))}
-                                </div>
-                            </div>
-                            <div className="space-y-6">
-                                <div className="h-4 bg-gray-200 rounded w-24"></div>
-                                <div className="h-8 bg-gray-200 rounded w-3/4"></div>
-                                <div className="h-4 bg-gray-200 rounded w-32"></div>
-                                <div className="h-20 bg-gray-200 rounded-xl"></div>
-                                <div className="space-y-4">
-                                    <div className="h-4 bg-gray-200 rounded w-20"></div>
-                                    <div className="flex gap-3">
-                                        {[...Array(4)].map((_, i) => (
-                                            <div key={i} className="w-10 h-10 bg-gray-200 rounded-full"></div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="animate-pulse flex flex-col items-center">
+                    <div className="h-12 w-12 bg-gray-200 rounded-full mb-4"></div>
+                    <div className="h-4 w-48 bg-gray-200 rounded"></div>
                 </div>
             </div>
         );
@@ -128,79 +108,81 @@ const ProductDetailPage = () => {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
                 <div className="text-center">
-                    <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <svg className="w-12 h-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                    </div>
                     <h2 className="text-2xl font-bold text-gray-900 mb-2">Product Not Found</h2>
-                    <p className="text-gray-600 mb-6">The product you're looking for doesn't exist or has been removed.</p>
-                    <a href="/products" className="inline-flex items-center px-6 py-3 bg-maroon-600 text-white font-semibold rounded-xl hover:bg-maroon-700 transition-colors">
-                        Browse Products
-                    </a>
+                    <a href="/products" className="text-maroon-600 hover:underline">Return to Products</a>
                 </div>
             </div>
         );
     }
 
     // Breadcrumb items
-    const breadcrumbItems = [
+    const getCategoryName = (): string => {
+        if (typeof product.category === 'object' && product.category?.name) return product.category.name;
+        if (typeof product.category === 'string') return product.category;
+        return 'Sarees';
+    };
+
+    const navItems = [
+        { label: 'Home', href: '/' },
         { label: 'Products', href: '/products' },
-        { label: product.category || 'Sarees', href: `/products?category=${product.category || 'sarees'}` },
-        { label: product.name },
+        { label: getCategoryName(), href: `/products?category=${typeof product.category === 'object' ? product.category?.slug : 'sarees'}` },
+        { label: product.name }
     ];
 
+    // Get selected variant stock for mobile sticky bar
+    const selectedVariantStock = product?.variants?.find(
+        v => v.color_code === selectedColorCode && v.size === selectedSize
+    )?.stock ?? 0;
+
     return (
-        <div className="min-h-screen bg-white">
+        <div className="min-h-screen bg-white pb-20 md:pb-0">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6">
-                {/* Breadcrumb */}
-                <Breadcrumb items={breadcrumbItems} />
-                
-                {/* Main Product Section */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 mt-6">
+                <Breadcrumb items={navItems} />
+
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 mt-6">
                     {/* Left: Product Gallery */}
-                    <div className="lg:sticky lg:top-24 lg:self-start">
+                    <div className="max-w-sm mx-auto lg:max-w-none w-full lg:col-span-6 lg:sticky lg:top-24 lg:self-start">
                         <ProductGallery product={product} selectedColorCode={selectedColorCode} />
                     </div>
-                    
+
                     {/* Right: Product Info */}
-                    <div>
-                        <ProductInfo 
-                            product={product} 
-                            selectedSize={selectedSize} 
+                    <div className="lg:col-span-6 product-side">
+                        <ProductInfo
+                            product={product}
+                            selectedSize={selectedSize}
                             selectedColor={selectedColorCode}
                             onScrollToReviews={scrollToReviews}
                         />
-                        
+
                         <div className="mt-8 space-y-6">
                             {/* Color Selector */}
-                            <ColorSelector 
-                                colors={product.colors} 
+                            <ColorSelector
+                                colors={product.colors}
                                 variants={product.variants}
-                                selectedColor={selectedColorCode} 
-                                onSelectColor={setSelectedColorCode} 
+                                selectedColor={selectedColorCode}
+                                onSelectColor={handleColorSelect} // Use new handler
                             />
-                            
+
                             {/* Size Selector */}
-                            {product.variants && product.variants.length > 0 && (
+                            {((product.variants && product.variants.length > 0) || (product.sizes && product.sizes.length > 0)) && (
                                 <SizeSelector
                                     variants={product.variants}
+                                    sizes={product.sizes}
                                     selectedColor={selectedColorCode}
                                     selectedSize={selectedSize}
                                     onSelectSize={setSelectedSize}
                                 />
                             )}
-                            
-                            {/* Blouse Options */}
-                            <BlouseOptions />
-                            
+
+
+
                             {/* Add to Cart / Buy Now */}
-                            <AddToCart 
-                                product={product} 
+                            <AddToCart
+                                product={product}
                                 selectedColor={selectedColorCode}
                                 selectedSize={selectedSize}
                             />
-                            
+
                             {/* Delivery Info Badges */}
                             <div className="grid grid-cols-3 gap-4 pt-6 border-t border-gray-100">
                                 <div className="flex flex-col items-center text-center p-3 bg-gray-50 rounded-xl">
@@ -219,15 +201,43 @@ const ProductDetailPage = () => {
                                     <span className="text-xs text-gray-500">Pay on Delivery</span>
                                 </div>
                             </div>
+
+                            {/* Tabs Section (Description, Details, Reviews) */}
+                            <TabsComponent product={product} ref={tabsRef} />
                         </div>
                     </div>
                 </div>
-                
-                {/* Tabs Section */}
-                <TabsComponent product={product} ref={tabsRef} />
-                
+
+                {/* Recently Viewed Products */}
+
                 {/* Recently Viewed Products */}
                 <RecentlyViewed currentProductId={id} />
+            </div>
+
+            {/* Mobile Sticky Bottom Bar */}
+            <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg md:hidden z-50">
+                <div className="container mx-auto px-4 py-3">
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="flex-1">
+                            <div className="text-xs text-gray-500">Price</div>
+                            <div className="text-xl font-bold text-maroon-600">
+                                ₹{product.price.toLocaleString()}
+                            </div>
+                            {selectedVariantStock > 0 && selectedVariantStock < 10 && (
+                                <div className="text-xs text-red-600 font-semibold">
+                                    Only {selectedVariantStock} left
+                                </div>
+                            )}
+                        </div>
+                        <div className="flex gap-2">
+                            <AddToCart
+                                product={product}
+                                selectedColor={selectedColorCode}
+                                selectedSize={selectedSize}
+                            />
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     );

@@ -8,6 +8,7 @@ use App\Http\Resources\ProductResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Storage;
 
 class ProductController extends Controller
 {
@@ -19,32 +20,67 @@ class ProductController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Product::with(['category', 'pattern', 'images', 'variants'])->where('status', 'active');
+        $query = Product::with(['category', 'subcategory', 'pattern', 'images', 'variants'])->where('status', 'active');
         
         // Apply filters if provided
-        if ($request->has('category_id')) {
-            $query->where('category_id', $request->category_id);
+        // Category Filter (Supports array of IDs or Slugs)
+        if ($request->filled('category')) {
+            $categories = is_array($request->category) ? $request->category : explode(',', $request->category);
+            $query->where(function($q) use ($categories) {
+                $q->whereIn('category_id', $categories)
+                  ->orWhereHas('category', function($sq) use ($categories) {
+                      $sq->whereIn('slug', $categories);
+                  });
+            });
         }
         
-        if ($request->has('min_price') || $request->has('max_price')) {
-            if ($request->has('min_price')) {
-                $query->where('price', '>=', $request->min_price);
-            }
-            if ($request->has('max_price')) {
-                $query->where('price', '<=', $request->max_price);
+        // Sub Category Filter
+        if ($request->filled('sub_category')) {
+            $subCategories = is_array($request->sub_category) ? $request->sub_category : explode(',', $request->sub_category);
+            $query->where(function($q) use ($subCategories) {
+                $q->whereIn('subcategory_id', $subCategories)
+                  ->orWhereHas('subcategory', function($sq) use ($subCategories) {
+                      $sq->whereIn('slug', $subCategories);
+                  });
+            });
+        }
+
+        // Price Range Filter
+        if ($request->filled('price')) {
+            $price = $request->price;
+            if ($price === 'under_1000') {
+                $query->where('price', '<=', 1000);
+            } elseif ($price === '1000_5000') {
+                $query->whereBetween('price', [1000, 5000]);
+            } elseif ($price === '5000_10000') {
+                $query->whereBetween('price', [5000, 10000]);
+            } elseif ($price === 'above_10000') {
+                $query->where('price', '>=', 10000);
             }
         }
         
+        // Color Filter (No 0 or empty values)
+        if ($request->filled('color')) {
+            $colors = is_array($request->color) ? $request->color : explode(',', $request->color);
+            $colors = array_filter($colors, function($c) {
+                return !empty($c) && $c !== '0' && $c !== 0;
+            });
+            
+            if (!empty($colors)) {
+                $query->whereIn('color', $colors);
+            }
+        }
+        
+        // Fabric Filter
         if ($request->has('fabric')) {
-            $query->where('fabric', $request->fabric);
+            $fabrics = is_array($request->fabric) ? $request->fabric : explode(',', $request->fabric);
+            $query->whereIn('fabric', $fabrics);
         }
         
-        if ($request->has('color')) {
-            $query->where('color', $request->color);
-        }
-        
+        // Occasion Filter
         if ($request->has('occasion')) {
-            $query->where('occasion', $request->occasion);
+            $occasions = is_array($request->occasion) ? $request->occasion : explode(',', $request->occasion);
+            $query->whereIn('occasion', $occasions);
         }
         
         // New filters based on homepage flags
@@ -64,10 +100,35 @@ class ProductController extends Controller
             $query->where('is_suwish_collection', true);
         }
         
+        // Search
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%")
+                  ->orWhere('sku', 'like', "%{$search}%");
+            });
+        }
+
         // Apply sorting
         $sortBy = $request->get('sort_by', 'created_at');
         $sortOrder = $request->get('sort_order', 'desc');
         
+        if ($request->filled('sort')) {
+            switch($request->sort) {
+                case 'price-low-high':
+                    $sortBy = 'price'; $sortOrder = 'asc'; break;
+                case 'price-high-low':
+                    $sortBy = 'price'; $sortOrder = 'desc'; break;
+                case 'name-asc':
+                    $sortBy = 'name'; $sortOrder = 'asc'; break;
+                case 'popularity':
+                    $sortBy = 'created_at'; $sortOrder = 'desc'; break; // Fallback
+                default:
+                    $sortBy = 'created_at'; $sortOrder = 'desc';
+            }
+        }
+
         $query->orderBy($sortBy, $sortOrder);
         
         $products = $query->paginate($request->get('per_page', 12));
@@ -83,7 +144,7 @@ class ProductController extends Controller
      */
     public function adminIndex(Request $request)
     {
-        $query = Product::with(['category', 'images', 'variants'])->orderBy('created_at', 'desc');
+        $query = Product::with(['category', 'subcategory', 'images', 'variants'])->orderBy('created_at', 'desc');
         
         if ($request->has('search')) {
             $search = $request->search;
@@ -117,32 +178,38 @@ class ProductController extends Controller
             'color_images' => 'nullable|array',
             'color_images.*' => 'array',
             'color_images.*.*' => 'string',
+            'is_new_arrival' => 'nullable|boolean',
+            'is_trending' => 'nullable|boolean',
+            'is_ethnic_wear' => 'nullable|boolean',
+            'is_suwish_collection' => 'nullable|boolean',
+            'package_contains' => 'nullable|string',
+            'fit' => 'nullable|string',
+            'origin' => 'nullable|string',
         ]);
-        
+
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
         
         $data = $request->except(['image', 'images']);
 
-        // Handle is_active to status conversion
-        if ($request->has('is_active')) {
-            $data['status'] = filter_var($request->input('is_active'), FILTER_VALIDATE_BOOLEAN) ? 'active' : 'inactive';
-            unset($data['is_active']);
-        }
+        // Handle boolean flags
+        $data['status'] = $request->input('is_active', false) ? 'active' : 'inactive';
+        $data['is_new_arrival'] = filter_var($request->input('is_new_arrival', false), FILTER_VALIDATE_BOOLEAN);
+        $data['is_trending'] = filter_var($request->input('is_trending', false), FILTER_VALIDATE_BOOLEAN);
+        $data['is_ethnic_wear'] = filter_var($request->input('is_ethnic_wear', false), FILTER_VALIDATE_BOOLEAN);
+        $data['is_suwish_collection'] = filter_var($request->input('is_suwish_collection', false), FILTER_VALIDATE_BOOLEAN);
 
         if ($request->hasFile('image')) {
-            $imageName = time() . '.' . $request->image->extension();
-            $request->image->move(public_path('products'), $imageName);
-            $data['image_url'] = 'products/' . $imageName;
+            $path = Storage::disk('public')->putFile('products', $request->file('image'));
+            $data['image_url'] = $path;
         }
 
         if ($request->hasFile('images')) {
             $imagePaths = [];
             foreach ($request->file('images') as $file) {
-                $imageName = time() . '_' . $file->getClientOriginalName();
-                $file->move(public_path('products'), $imageName);
-                $imagePaths[] = 'products/' . $imageName;
+                $path = Storage::disk('public')->putFile('products', $file);
+                $imagePaths[] = $path;
             }
             $data['image_urls'] = $imagePaths;
         }
@@ -177,7 +244,7 @@ class ProductController extends Controller
      */
     public function show($id)
     {
-        $product = Product::with(['category', 'images', 'variants'])->findOrFail($id);
+        $product = Product::with(['category', 'subcategory', 'images', 'variants'])->findOrFail($id);
         
         return new ProductResource($product);
     }
@@ -199,11 +266,19 @@ class ProductController extends Controller
             'price' => 'sometimes|numeric|min:0',
             'sku' => 'sometimes|unique:products,sku,' . $id,
             'category_id' => 'sometimes|exists:categories,id',
+            'subcategory_id' => 'nullable|exists:subcategories,id',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             'color_images' => 'nullable|array',
             'color_images.*' => 'array',
             'color_images.*.*' => 'string',
+            'is_new_arrival' => 'nullable|boolean',
+            'is_trending' => 'nullable|boolean',
+            'is_ethnic_wear' => 'nullable|boolean',
+            'is_suwish_collection' => 'nullable|boolean',
+            'package_contains' => 'nullable|string',
+            'fit' => 'nullable|string',
+            'origin' => 'nullable|string',
         ]);
         
         if ($validator->fails()) {
@@ -212,36 +287,45 @@ class ProductController extends Controller
         
         $data = $request->except(['image', 'images']);
 
-        // Handle is_active to status conversion
+        // Handle boolean flags if present in the request
         if ($request->has('is_active')) {
             $data['status'] = filter_var($request->input('is_active'), FILTER_VALIDATE_BOOLEAN) ? 'active' : 'inactive';
-            unset($data['is_active']);
+        }
+        if ($request->has('is_new_arrival')) {
+            $data['is_new_arrival'] = filter_var($request->input('is_new_arrival'), FILTER_VALIDATE_BOOLEAN);
+        }
+        if ($request->has('is_trending')) {
+            $data['is_trending'] = filter_var($request->input('is_trending'), FILTER_VALIDATE_BOOLEAN);
+        }
+        if ($request->has('is_ethnic_wear')) {
+            $data['is_ethnic_wear'] = filter_var($request->input('is_ethnic_wear'), FILTER_VALIDATE_BOOLEAN);
+        }
+        if ($request->has('is_suwish_collection')) {
+            $data['is_suwish_collection'] = filter_var($request->input('is_suwish_collection'), FILTER_VALIDATE_BOOLEAN);
         }
 
         if ($request->hasFile('image')) {
             // Delete old image if it exists
-            if ($product->image_url && file_exists(public_path($product->image_url))) {
-                unlink(public_path($product->image_url));
+            if ($product->image_url) {
+                Storage::disk('public')->delete($product->image_url);
             }
 
-            $imageName = time() . '.' . $request->image->extension();
-            $request->image->move(public_path('products'), $imageName);
-            $data['image_url'] = 'products/' . $imageName;
+            $path = Storage::disk('public')->putFile('products', $request->file('image'));
+            $data['image_url'] = $path;
         }
 
         if ($request->hasFile('images')) {
-            // Merge with existing images if they exist
-            $existingImages = is_array($product->image_urls) ? $product->image_urls : [];
-            
+            // For simplicity, this example replaces existing gallery images.
+            // You might want to add logic to merge or selectively delete images.
             $imagePaths = [];
             foreach ($request->file('images') as $file) {
-                $imageName = time() . '_' . $file->getClientOriginalName();
-                $file->move(public_path('products'), $imageName);
-                $imagePaths[] = 'products/' . $imageName;
+                $path = Storage::disk('public')->putFile('products', $file);
+                $imagePaths[] = $path;
             }
             
-            $allImages = array_merge($existingImages, $imagePaths);
-            $data['image_urls'] = $allImages;
+            // Assuming 'image_urls' is a casted array on the Product model.
+            $existingImages = $product->image_urls ?? [];
+            $data['image_urls'] = array_merge($existingImages, $imagePaths);
         }
 
         // Handle color-specific images if provided
@@ -342,10 +426,11 @@ class ProductController extends Controller
             ->where('status', 'active')
             ->where('is_ethnic_wear', true)
             ->orderBy('created_at', 'desc')
-            ->limit(10)
             ->get();
             
-        return ProductResource::collection($products);
+        return response()->json([
+            'data' => ProductResource::collection($products)
+        ]);
     }
     
     /**
@@ -389,12 +474,11 @@ class ProductController extends Controller
         $maxSort = $product->images()->max('sort_order') ?? 0;
         
         foreach ($request->file('images') as $index => $file) {
-            $imageName = time() . '_' . uniqid() . '.' . $file->extension();
-            $file->move(public_path('products'), $imageName);
+            $path = Storage::disk('public')->putFile('products', $file);
             
             $imageData = [
                 'product_id' => $product->id,
-                'image_url' => 'products/' . $imageName,
+                'image_url' => $path,
                 'color_code' => $colorCode,
                 'sort_order' => $maxSort + $index + 1,
                 'is_default' => $isDefault && $index === 0, // Only first image can be default
@@ -417,10 +501,8 @@ class ProductController extends Controller
         $product = Product::findOrFail($id);
         $image = $product->images()->findOrFail($imageId);
         
-        // Delete physical file
-        if (file_exists(public_path($image->image_url))) {
-            unlink(public_path($image->image_url));
-        }
+        // Delete physical file from storage
+        Storage::disk('public')->delete($image->image_url);
         
         $image->delete();
         
@@ -466,6 +548,7 @@ class ProductController extends Controller
             'variants.*.color_name' => 'required|string|max:100',
             'variants.*.size' => 'required|string|max:20',
             'variants.*.stock' => 'required|integer|min:0',
+            'variants.*.price' => 'nullable|numeric|min:0',
             'variants.*.price_adjustment' => 'nullable|numeric',
             'variants.*.sku' => 'nullable|string|max:100|unique:product_variants,sku',
         ]);
@@ -486,6 +569,7 @@ class ProductController extends Controller
                 [
                     'color_name' => $variantData['color_name'],
                     'stock' => $variantData['stock'],
+                    'price' => $variantData['price'] ?? 0,
                     'price_adjustment' => $variantData['price_adjustment'] ?? 0,
                     'sku' => $variantData['sku'] ?? null,
                 ]

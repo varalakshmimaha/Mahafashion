@@ -10,10 +10,10 @@ interface ProductInfoProps {
 }
 
 // Star Rating Component
-const StarRating: React.FC<{ rating: number; maxRating?: number; size?: number }> = ({ 
-  rating, 
-  maxRating = 5, 
-  size = 16 
+const StarRating: React.FC<{ rating: number; maxRating?: number; size?: number }> = ({
+  rating,
+  maxRating = 5,
+  size = 16
 }) => {
   return (
     <div className="flex items-center gap-0.5">
@@ -22,18 +22,18 @@ const StarRating: React.FC<{ rating: number; maxRating?: number; size?: number }
         return (
           <div key={index} className="relative" style={{ width: size, height: size }}>
             {/* Empty star (background) */}
-            <Star 
-              size={size} 
+            <Star
+              size={size}
               className="text-gray-300"
               fill="currentColor"
             />
             {/* Filled star (foreground with clip) */}
-            <div 
+            <div
               className="absolute inset-0 overflow-hidden"
               style={{ width: `${fillPercentage}%` }}
             >
-              <Star 
-                size={size} 
+              <Star
+                size={size}
                 className="text-yellow-400"
                 fill="currentColor"
               />
@@ -46,124 +46,146 @@ const StarRating: React.FC<{ rating: number; maxRating?: number; size?: number }
 };
 
 const ProductInfo: React.FC<ProductInfoProps> = ({ product, selectedSize, selectedColor, onScrollToReviews }) => {
-  // Calculate discounted price
-  const calculateDiscountedPrice = (price: number, discount: number) => {
-    return Math.round(price - (price * discount / 100));
-  };
+  // Dynamic Pricing Logic based on Variant or Size
+  const priceData = useMemo(() => {
+    let basePrice = product.price; // Start with base price
+    let finalPrice = product.discounted_price || product.final_price || product.price;
+    let discountPercentage = product.discount || 0;
 
-  // Get price adjustment from selected variant
-  const priceAdjustment = useMemo(() => {
+    // If a variant is selected, adjust values
     if (product.variants && selectedColor && selectedSize) {
       const variant = product.variants.find(
         v => v.color_code === selectedColor && v.size === selectedSize
       );
-      return variant?.price_adjustment || 0;
+
+      if (variant) {
+        // 1. Check if variant has size-specific price override (from admin panel size price field)
+        if (variant.price && variant.price > 0) {
+          // Variant has its own price - this is the final price for this size
+          finalPrice = variant.price;
+          // Calculate base price based on product's discount percentage
+          if (discountPercentage > 0) {
+            basePrice = finalPrice / (1 - (discountPercentage / 100));
+          } else {
+            basePrice = finalPrice;
+          }
+        }
+        // 2. Check for price adjustment (alternative pricing method)
+        else if (variant.price_adjustment) {
+          const adjustment = Number(variant.price_adjustment) || 0;
+          finalPrice = (product.discounted_price || product.price) + adjustment;
+          basePrice = (product.price) + adjustment;
+        }
+      }
     }
-    return 0;
-  }, [product.variants, selectedColor, selectedSize]);
+    // Check standalone sizes (no color variants)
+    else if (product.sizes && selectedSize) {
+      const productAny = product as any;
+      const sizeItem = productAny.sizes.find((s: any) => s.size === selectedSize);
 
-  const basePrice = product.price + priceAdjustment;
-  const discountedPrice = product.discount && product.discount > 0 
-    ? calculateDiscountedPrice(basePrice, product.discount) 
-    : basePrice;
+      if (sizeItem && sizeItem.price && sizeItem.price > 0) {
+        finalPrice = sizeItem.price;
+        // Calculate base price based on product's discount percentage
+        if (discountPercentage > 0) {
+          basePrice = finalPrice / (1 - (discountPercentage / 100));
+        } else {
+          basePrice = finalPrice;
+        }
+      }
+    }
 
-  // Mock rating data (in real app, this would come from product API)
-  const rating = product.rating || 4.5;
-  const reviewCount = product.reviewCount || 124;
+    // CRITICAL FIX: If MRP equals Selling Price but there is a discount, 
+    // it means 'basePrice' is actually the Selling Price. We must REVERSE calculate the true MRP.
+    // Example: Price 3499, Discount 40%. MRP should be 3499 / 0.6 = 5831.
+    // Use a small epsilon for float comparison safety
+    if (discountPercentage > 0 && Math.abs(basePrice - finalPrice) < 1) {
+      basePrice = finalPrice / (1 - (discountPercentage / 100));
+    }
+
+    return {
+      basePrice,
+      finalPrice,
+      discountPercentage
+    };
+  }, [product, selectedColor, selectedSize]);
+
+  // Calculate stock for selected variant
+  const selectedStock = useMemo(() => {
+    if (product.variants && selectedColor && selectedSize) {
+      const variant = product.variants.find(
+        v => v.color_code === selectedColor && v.size === selectedSize
+      );
+      return variant?.stock ?? 0;
+    }
+    return product.stockQuantity || (product as any).stock_quantity || 0;
+  }, [product.variants, selectedColor, selectedSize, product.stockQuantity, (product as any).stock_quantity]);
+
+  // Only show rating/review if > 0
+  const rating = product.rating && product.rating > 0 ? product.rating : null;
+  const reviewCount = product.reviewCount && product.reviewCount > 0 ? product.reviewCount : null;
 
   return (
     <div className="product-info">
-      {/* Brand */}
-      <div className="mb-2">
-        <span className="text-maroon-600 font-bold tracking-widest text-sm uppercase">Maha Signature</span>
-      </div>
-
       {/* Product Name */}
-      <h1 className="text-3xl md:text-4xl font-serif font-bold text-gray-900 mb-4 leading-tight">{product.name}</h1>
-      
+      <h1 className="text-3xl md:text-3xl font-serif font-bold text-gray-900 mb-2 leading-tight">{product.name}</h1>
+
+      {/* Short Description (Using line-clamped description as fallback) */}
+      <p className="text-gray-500 text-sm md:text-base mb-4 line-clamp-2">
+        {product.description}
+      </p>
+
       {/* Rating and Reviews */}
-      <div className="flex items-center gap-4 mb-6">
-        <div className="flex items-center gap-2">
-          <StarRating rating={rating} size={18} />
-          <span className="text-sm font-semibold text-gray-700">{rating.toFixed(1)}</span>
-        </div>
-        <span className="text-gray-300">|</span>
-        <button 
-          onClick={onScrollToReviews}
-          className="text-sm text-maroon-600 hover:text-maroon-700 hover:underline transition-colors"
-        >
-          {reviewCount} Reviews
-        </button>
-        <span className="text-gray-300">|</span>
-        <span className="text-sm text-green-600 font-medium">In Stock</span>
-      </div>
-      
-      {/* Product Price Section */}
-      <div className="bg-maroon-50/50 p-6 rounded-3xl mb-8 border border-maroon-100/50 relative overflow-hidden">
-        {product.discount && product.discount > 0 ? (
-          <div>
-            <div className="flex items-end gap-3 mb-1">
-              <p className="text-4xl font-bold text-maroon-950">
-                ₹{discountedPrice.toLocaleString()}
-              </p>
-              <p className="text-xl text-gray-400 line-through pb-1">
-                ₹{basePrice.toLocaleString()}
-              </p>
-              <span className="text-xs bg-maroon-600 text-white font-bold px-3 py-1 rounded-full mb-2 ml-2 tracking-wider">
-                {product.discount}% OFF
-              </span>
+      {(rating || reviewCount) && (
+        <div className="flex flex-wrap items-center gap-4 mb-6">
+          {rating && (
+            <div className="flex items-center gap-2">
+              <StarRating rating={rating} size={18} />
+              <span className="text-sm font-semibold text-gray-700">{rating.toFixed(1)}</span>
             </div>
-            <p className="text-sm text-green-700 font-semibold flex items-center gap-1 mt-2">
-              <span className="inline-block w-4 h-4 bg-green-100 rounded-full text-[10px] flex items-center justify-center">i</span>
-              Special Promotional Offer: You save ₹{(product.price - discountedPrice).toLocaleString()}
-            </p>
-          </div>
-        ) : (
-          <p className="text-4xl font-bold text-maroon-950">
-            ₹{product.price.toLocaleString()}
-          </p>
-        )}
-      </div>
-      
-      {/* Short Features */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-6 mb-8">
-        <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white rounded-xl shadow-sm border border-maroon-50 flex items-center justify-center text-maroon-600">
-                <Award size={20} />
-            </div>
-            <span className="text-xs font-bold text-gray-600 uppercase tracking-tighter">Handcrafted Quality</span>
-        </div>
-        <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white rounded-xl shadow-sm border border-maroon-50 flex items-center justify-center text-maroon-600">
-                <ShieldCheck size={20} />
-            </div>
-            <span className="text-xs font-bold text-gray-600 uppercase tracking-tighter">Authentic Silk</span>
-        </div>
-        <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white rounded-xl shadow-sm border border-maroon-50 flex items-center justify-center text-maroon-600">
-                <Truck size={20} />
-            </div>
-            <span className="text-xs font-bold text-gray-600 uppercase tracking-tighter">Fast Delivery</span>
-        </div>
-      </div>
-
-      {/* Product Description */}
-      <div className="border-t border-maroon-100 pt-8 mb-8">
-        <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
-            <span className="w-1.5 h-6 bg-maroon-600 rounded-full"></span>
-            About this Masterpiece
-        </h3>
-        <p className="text-gray-600 leading-relaxed italic">{product.description}</p>
-      </div>
-
-      {/* Fabric Tag */}
-      {product.fabric && (
-        <div className="inline-flex items-center gap-3 px-5 py-2.5 bg-gray-50 rounded-2xl border border-gray-100">
-          <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Fabric</span>
-          <span className="h-4 w-px bg-gray-200"></span>
-          <span className="text-sm font-bold text-maroon-900">{product.fabric}</span>
+          )}
+          {rating && reviewCount && <span className="text-gray-300">|</span>}
+          {reviewCount && (
+            <button
+              onClick={onScrollToReviews}
+              className="text-sm text-maroon-600 hover:text-maroon-700 hover:underline transition-colors"
+            >
+              {reviewCount} Reviews
+            </button>
+          )}
         </div>
       )}
+
+      {/* Product Price Section */}
+      <div className="mb-8">
+        <div className="space-y-1">
+          {priceData.discountPercentage > 0 ? (
+            <>
+              <div className="flex items-baseline gap-3">
+                <p className="text-3xl font-bold text-gray-900">
+                  ₹{Math.round(priceData.finalPrice).toLocaleString()}
+                </p>
+                <p className="text-lg font-medium text-gray-400 line-through">
+                  MRP ₹{Math.round(priceData.basePrice).toLocaleString()}
+                </p>
+                <span className="text-lg font-bold text-orange-500">
+                  ({priceData.discountPercentage}% OFF)
+                </span>
+              </div>
+              <p className="text-sm text-green-700 font-semibold">
+                You Save: ₹{Math.round(priceData.basePrice - priceData.finalPrice).toLocaleString()}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">Price inclusive of all taxes</p>
+            </>
+          ) : (
+            <div className="flex items-baseline gap-4">
+              <p className="text-3xl font-bold text-gray-900">
+                ₹{Math.round(priceData.finalPrice).toLocaleString()}
+              </p>
+              <p className="text-xs text-gray-500 self-end">Price inclusive of all taxes</p>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };

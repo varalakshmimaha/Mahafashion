@@ -15,7 +15,19 @@ class Authenticate extends Middleware
     protected function redirectTo($request)
     {
         if (! $request->expectsJson()) {
-            return route('login');
+            // Check if the request is for the admin panel
+            if ($request->is('admin') || $request->is('admin/*')) {
+                return route('admin.login');
+            }
+            
+            // Check if a standard 'login' route exists
+            if (\Illuminate\Support\Facades\Route::has('login')) {
+                return route('login');
+            }
+
+            // Fallback for API or routes without a defined login page
+            // Returning null will cause Laravel to throw an AuthenticationException (401 Unauthorized for JSON)
+            return null;
         }
     }
 }

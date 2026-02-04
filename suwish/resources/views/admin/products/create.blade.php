@@ -46,7 +46,7 @@
                 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Category *</label>
-                    <select name="category_id" required class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                    <select name="category_id" id="category_id" required class="w-full px-3 py-2 border border-gray-300 rounded-md">
                         <option value="">Select a category</option>
                         @foreach($categories as $category)
                             <option value="{{ $category->id }}">{{ $category->name }}</option>
@@ -58,9 +58,43 @@
                 </div>
                 
                 <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Subcategory</label>
+                    <select name="subcategory_id" id="subcategory_id" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                        <option value="">Select a subcategory</option>
+                    </select>
+                    @error('subcategory_id')
+                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                    @enderror
+                </div>
+                
+                <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Default Color *</label>
                     <input type="text" name="color" required class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="Enter default color name">
                     @error('color')
+                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Package Contains</label>
+                    <input type="text" name="package_contains" class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="e.g., Saree with Blouse Piece">
+                    @error('package_contains')
+                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                    @enderror
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Fit</label>
+                    <input type="text" name="fit" class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="e.g., Regular">
+                    @error('fit')
+                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                    @enderror
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Origin</label>
+                    <input type="text" name="origin" class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="e.g., India">
+                    @error('origin')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
                 </div>
@@ -114,19 +148,41 @@
             </div>
         </div>
         
+        <!-- Default Product Images Section -->
+        <div class="mb-8 p-4 bg-indigo-50 rounded-lg border border-indigo-200">
+            <h2 class="text-lg font-semibold text-indigo-800 mb-2">📸 Default Product Images</h2>
+            <p class="text-sm text-gray-600 mb-4">
+                Upload general images for the product. These will be shown by default.
+            </p>
+            
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Upload Images</label>
+                <input type="file" 
+                       name="images[]" 
+                       id="default-file-input" 
+                       accept="image/*" 
+                       multiple 
+                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+                <p class="text-xs text-gray-500 mt-1">Select multiple images</p>
+            </div>
+            
+             <!-- Simple Preview Container -->
+            <div id="defaultImagePreview" class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 mt-4"></div>
+        </div>
+
         <!-- Color-Specific Images and Stock Section -->
         <div class="mb-8 p-4 bg-purple-50 rounded-lg border border-purple-100">
             <h2 class="text-lg font-semibold text-purple-800 mb-4">Color Variants</h2>
             <p class="text-sm text-gray-600 mb-4">Add different color variants with specific stock and images for each</p>
             
             <div id="color-variants-container">
-                <div class="color-variant mb-6 p-4 bg-white rounded-lg border border-gray-200">
+                <div class="color-variant mb-6 p-4 bg-white rounded-lg border border-gray-200" data-index="0">
                     <div class="flex justify-between items-center mb-3">
-                        <h3 class="text-md font-medium text-gray-800">Color Variant</h3>
-                        <button type="button" class="remove-color-variant text-red-600 hover:text-red-800 text-sm">Remove</button>
+                        <h3 class="text-md font-medium text-gray-800">Color Variant 1</h3>
+                        <button type="button" class="remove-color-variant text-red-600 hover:text-red-800 text-sm">Remove Color</button>
                     </div>
                     
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Color Name *</label>
                             <input type="text" name="color_variants[0][name]" required class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="e.g., Ruby Red">
@@ -138,20 +194,43 @@
                         </div>
                         
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Color ID *</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Color ID (Unique)</label>
                             <input type="text" name="color_variants[0][id]" required class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="e.g., red">
                         </div>
-                        
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Stock *</label>
-                            <input type="number" name="color_variants[0][stock]" required min="0" class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="e.g., 10">
+                    </div>
+
+                    <!-- Nested Sizes Validation Error Display -->
+                    @if($errors->has('color_variants.0.sizes'))
+                        <p class="text-sm text-red-600 mb-2">{{ $errors->first('color_variants.0.sizes') }}</p>
+                    @endif
+
+                    <div class="mb-4 bg-gray-50 p-3 rounded">
+                        <h4 class="text-sm font-medium text-gray-700 mb-2">Sizes & Stock</h4>
+                        <div class="sizes-container" id="sizes-container-0">
+                            <div class="size-row grid grid-cols-1 md:grid-cols-4 gap-3 mb-2">
+                                <div>
+                                    <input type="text" name="color_variants[0][sizes][0][size]" required class="w-full px-3 py-1 border border-gray-300 rounded text-sm" placeholder="Size (e.g. S)">
+                                </div>
+                                <div>
+                                    <input type="number" name="color_variants[0][sizes][0][stock]" required min="0" class="w-full px-3 py-1 border border-gray-300 rounded text-sm" placeholder="Stock">
+                                </div>
+                                <div>
+                                    <input type="number" name="color_variants[0][sizes][0][price]" step="0.01" min="0" class="w-full px-3 py-1 border border-gray-300 rounded text-sm" placeholder="Price (Override)">
+                                </div>
+                                <div class="flex items-center">
+                                    <button type="button" class="remove-size-row text-red-500 hover:text-red-700 text-xs">Remove</button>
+                                </div>
+                            </div>
                         </div>
+                        <button type="button" class="add-size-row text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded hover:bg-blue-100" data-color-index="0">
+                            + Add Another Size
+                        </button>
                     </div>
                     
                     <div class="mt-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Upload Images for this Color</label>
-                        <input type="file" name="color_variants[0][images][]" multiple accept="image/*" class="w-full px-3 py-2 border border-gray-300 rounded-md">
-                        <p class="text-sm text-gray-500 mt-1">Upload multiple images specific to this color variant</p>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Variant Images</label>
+                         <input type="file" name="color_variants[0][images][]" multiple accept="image/*" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                        <p class="text-xs text-gray-500 mt-1">Upload images specific to this color.</p>
                     </div>
                 </div>
             </div>
@@ -164,7 +243,7 @@
         <!-- Sizes Section -->
         <div class="mb-8 p-4 bg-blue-50 rounded-lg border border-blue-100">
             <h2 class="text-lg font-semibold text-blue-800 mb-4">Product Sizes</h2>
-            <p class="text-sm text-gray-600 mb-4">Add different sizes with specific stock quantities</p>
+            <p class="text-sm text-gray-600 mb-4">Add different sizes with specific stock quantities (Global)</p>
             
             <div id="sizes-container">
                 <div class="size-item mb-4 p-3 bg-white rounded border border-gray-200">
@@ -192,33 +271,7 @@
             </button>
         </div>
         
-        <!-- Default Image Section -->
-        <div class="mb-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <h2 class="text-lg font-semibold text-gray-800 mb-4">Default Image</h2>
-            
-            <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Default Image Index</label>
-                <input type="number" name="default_image_index" min="0" value="0" class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="Enter index of default image (0 for first image)">
-                <p class="text-sm text-gray-500 mt-1">Specify which image in the uploaded list should be the default/main image (0-indexed)</p>
-            </div>
-        </div>
-
-        <!-- Images Upload Section -->
-        <div class="mb-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <h2 class="text-lg font-semibold text-gray-800 mb-4">Default Product Images</h2>
-            
-            <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Upload Images *</label>
-                <input type="file" name="images[]" multiple accept="image/*" class="w-full px-3 py-2 border border-gray-300 rounded-md" required>
-                <p class="text-sm text-gray-500 mt-1">Upload multiple images for the product. At least one image is required.</p>
-                @error('images')
-                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                @enderror
-            </div>
-            
-            <!-- Image Preview Container -->
-            <div id="imagePreviewContainer" class="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"></div>
-        </div>
+        <input type="hidden" name="variant_image_mappings" id="variant_image_mappings">
         
         <!-- Visibility & Homepage Flags Section -->
         <div class="mb-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
@@ -299,136 +352,162 @@
 </div>
 
 <script>
-// Image preview functionality
-const imageInput = document.querySelector('input[name="images[]"]');
-const previewContainer = document.getElementById('imagePreviewContainer');
-
-imageInput.addEventListener('change', function() {
+// Default Image Preview
+document.getElementById('default-file-input').addEventListener('change', function() {
+    const previewContainer = document.getElementById('defaultImagePreview');
     previewContainer.innerHTML = '';
-    
     if (this.files) {
         Array.from(this.files).forEach(file => {
-            if (!file.type.match('image.*')) return;
-            
-            const reader = new FileReader();
-            
-            reader.onload = function(e) {
-                const previewItem = document.createElement('div');
-                previewItem.className = 'relative';
-                previewItem.innerHTML = `
-                    <img src="${e.target.result}" alt="Preview" class="w-full h-32 object-contain rounded border">
-                    <div class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">
-                        <i class="fas fa-times"></i>
-                    </div>
-                `;
-                previewContainer.appendChild(previewItem);
-            }
-            
-            reader.readAsDataURL(file);
+             if (!file.type.match('image.*')) return;
+             const reader = new FileReader();
+             reader.onload = function(e) {
+                 previewContainer.innerHTML += `<img src="${e.target.result}" class="w-full h-24 object-cover rounded border">`;
+             }
+             reader.readAsDataURL(file);
         });
     }
 });
 
-// Color variant management
+// Dynamic structure logic (tweaked for colorVariantIndex)
 let colorVariantIndex = 1;
 
 document.getElementById('add-color-variant').addEventListener('click', function() {
     const container = document.getElementById('color-variants-container');
-    
     const newVariant = document.createElement('div');
     newVariant.className = 'color-variant mb-6 p-4 bg-white rounded-lg border border-gray-200';
+    newVariant.dataset.index = colorVariantIndex;
     newVariant.innerHTML = `
         <div class="flex justify-between items-center mb-3">
-            <h3 class="text-md font-medium text-gray-800">Color Variant</h3>
-            <button type="button" class="remove-color-variant text-red-600 hover:text-red-800 text-sm">Remove</button>
+            <h3 class="text-md font-medium text-gray-800">Color Variant ${colorVariantIndex + 1}</h3>
+            <button type="button" class="remove-color-variant text-red-600 hover:text-red-800 text-sm">Remove Color</button>
         </div>
         
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Color Name *</label>
                 <input type="text" name="color_variants[${colorVariantIndex}][name]" required class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="e.g., Ruby Red">
             </div>
-            
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Color Code *</label>
                 <input type="text" name="color_variants[${colorVariantIndex}][hex_code]" required class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="e.g., #C41E3A">
             </div>
-            
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Color ID *</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Color ID (Unique)</label>
                 <input type="text" name="color_variants[${colorVariantIndex}][id]" required class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="e.g., red">
             </div>
-            
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Stock *</label>
-                <input type="number" name="color_variants[${colorVariantIndex}][stock]" required min="0" class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="e.g., 10">
+        </div>
+
+        <div class="mb-4 bg-gray-50 p-3 rounded">
+            <h4 class="text-sm font-medium text-gray-700 mb-2">Sizes & Stock</h4>
+            <div class="sizes-container" id="sizes-container-${colorVariantIndex}">
+                <div class="size-row grid grid-cols-1 md:grid-cols-4 gap-3 mb-2">
+                    <div>
+                        <input type="text" name="color_variants[${colorVariantIndex}][sizes][0][size]" required class="w-full px-3 py-1 border border-gray-300 rounded text-sm" placeholder="Size (e.g. S)">
+                    </div>
+                    <div>
+                        <input type="number" name="color_variants[${colorVariantIndex}][sizes][0][stock]" required min="0" class="w-full px-3 py-1 border border-gray-300 rounded text-sm" placeholder="Stock">
+                    </div>
+                    <div>
+                        <input type="number" name="color_variants[${colorVariantIndex}][sizes][0][price]" step="0.01" min="0" class="w-full px-3 py-1 border border-gray-300 rounded text-sm" placeholder="Price (Override)">
+                    </div>
+                    <div class="flex items-center">
+                        <button type="button" class="remove-size-row text-red-500 hover:text-red-700 text-xs">Remove</button>
+                    </div>
+                </div>
             </div>
+            <button type="button" class="add-size-row text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded hover:bg-blue-100" data-color-index="${colorVariantIndex}">
+                + Add Another Size
+            </button>
         </div>
         
         <div class="mt-4">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Upload Images for this Color</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Variant Images</label>
             <input type="file" name="color_variants[${colorVariantIndex}][images][]" multiple accept="image/*" class="w-full px-3 py-2 border border-gray-300 rounded-md">
-            <p class="text-sm text-gray-500 mt-1">Upload multiple images specific to this color variant</p>
+            <p class="text-xs text-gray-500 mt-1">Upload images specific to this color.</p>
         </div>
     `;
-    
     container.appendChild(newVariant);
     colorVariantIndex++;
+});
+
+// Event delegation for sizes
+document.addEventListener('click', function(e) {
+    if (e.target && e.target.classList.contains('add-size-row')) {
+        const colorIndex = e.target.dataset.colorIndex;
+        const container = document.getElementById(`sizes-container-${colorIndex}`);
+        const sizeRows = container.querySelectorAll('.size-row');
+        const newSizeIndex = sizeRows.length;
+        
+        const newRow = document.createElement('div');
+        newRow.className = 'size-row grid grid-cols-1 md:grid-cols-4 gap-3 mb-2';
+        newRow.innerHTML = `
+            <div>
+                <input type="text" name="color_variants[${colorIndex}][sizes][${newSizeIndex}][size]" required class="w-full px-3 py-1 border border-gray-300 rounded text-sm" placeholder="Size (e.g. S)">
+            </div>
+            <div>
+                <input type="number" name="color_variants[${colorIndex}][sizes][${newSizeIndex}][stock]" required min="0" class="w-full px-3 py-1 border border-gray-300 rounded text-sm" placeholder="Stock">
+            </div>
+            <div>
+                <input type="number" name="color_variants[${colorIndex}][sizes][${newSizeIndex}][price]" step="0.01" min="0" class="w-full px-3 py-1 border border-gray-300 rounded text-sm" placeholder="Price (Override)">
+            </div>
+            <div class="flex items-center">
+                <button type="button" class="remove-size-row text-red-500 hover:text-red-700 text-xs">Remove</button>
+            </div>
+        `;
+        container.appendChild(newRow);
+    }
     
-    // Add event listener to the new remove button
-    newVariant.querySelector('.remove-color-variant').addEventListener('click', function() {
-        newVariant.remove();
-    });
+    if (e.target && e.target.classList.contains('remove-size-row')) {
+        e.target.closest('.size-row').remove();
+    }
+
+    if (e.target && e.target.classList.contains('remove-color-variant')) {
+        e.target.closest('.color-variant').remove();
+    }
 });
 
-// Add event listeners to existing remove buttons
-document.querySelectorAll('.remove-color-variant').forEach(button => {
-    button.addEventListener('click', function() {
-        this.closest('.color-variant').remove();
-    });
-});
-
-// Size management
+// Independent sizes logic
 let sizeIndex = 1;
-
 document.getElementById('add-size').addEventListener('click', function() {
     const container = document.getElementById('sizes-container');
-    
     const newSize = document.createElement('div');
     newSize.className = 'size-item mb-4 p-3 bg-white rounded border border-gray-200';
     newSize.innerHTML = `
         <div class="flex justify-between items-center mb-2">
-            <h3 class="text-md font-medium text-gray-800">Size</h3>
+            <h3 class="text-md font-medium text-gray-800">Size (Independent)</h3>
             <button type="button" class="remove-size text-red-600 hover:text-red-800 text-sm">Remove</button>
         </div>
-        
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Size *</label>
                 <input type="text" name="sizes[${sizeIndex}][size]" required class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="e.g., S, M, L, XL or 36, 38, 40">
             </div>
-            
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Stock *</label>
                 <input type="number" name="sizes[${sizeIndex}][stock]" required min="0" class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="e.g., 10">
             </div>
         </div>
     `;
-    
     container.appendChild(newSize);
     sizeIndex++;
-    
-    // Add event listener to the new remove button
-    newSize.querySelector('.remove-size').addEventListener('click', function() {
-        newSize.remove();
-    });
+    newSize.querySelector('.remove-size').addEventListener('click', () => newSize.remove());
 });
 
-// Add event listeners to existing remove size buttons
-document.querySelectorAll('.remove-size').forEach(button => {
-    button.addEventListener('click', function() {
-        this.closest('.size-item').remove();
-    });
+document.querySelectorAll('.remove-size').forEach(btn => btn.addEventListener('click', (e) => e.target.closest('.size-item').remove()));
+
+// Category/Subcategory logic
+document.getElementById('category_id').addEventListener('change', function() {
+    const subSelect = document.getElementById('subcategory_id');
+    subSelect.innerHTML = '<option value="">Select a subcategory</option>';
+    if (this.value) {
+        fetch('/admin/get-subcategories/' + this.value)
+            .then(res => res.json())
+            .then(data => {
+                data.forEach(sub => {
+                    subSelect.innerHTML += `<option value="${sub.id}">${sub.name}</option>`;
+                });
+            });
+    }
 });
 </script>
 @endsection

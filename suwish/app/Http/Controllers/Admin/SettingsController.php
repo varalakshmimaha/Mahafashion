@@ -28,7 +28,9 @@ class SettingsController extends Controller
             'maintenance_mode' => Setting::get('maintenance_mode') === '1',
         ];
 
-        return view('admin.settings.index', compact('settings'));
+        $socialLinks = \App\Models\SocialMediaLink::orderBy('sort_order')->get();
+
+        return view('admin.settings.index', compact('settings', 'socialLinks'));
     }
 
     public function update(Request $request)

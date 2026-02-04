@@ -42,11 +42,18 @@ class StaticPageController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
+        // Auto-generate slug from name if not present, enforcing lowercase/kebab
+        $slug = \Illuminate\Support\Str::slug($request->name);
+
         StaticPage::create([
             'name' => $request->name,
+            'slug' => $slug, // Ensure slug is populated
             'title' => $request->title,
             'content' => $request->content,
+            'status' => 'published', // Default to published
             'sort_order' => $request->sort_order ?? 0,
+            'meta_title' => $request->title, // Default metadata
+            'meta_description' => \Illuminate\Support\Str::limit(strip_tags($request->content), 160),
         ]);
 
         return redirect()->route('admin.static-pages.index')->with('success', 'Static page created successfully.');
@@ -55,8 +62,9 @@ class StaticPageController extends Controller
     /**
      * Display the specified static page.
      */
-    public function show(StaticPage $staticPage)
+    public function show($name)
     {
+        $staticPage = StaticPage::where('name', $name)->firstOrFail();
         return view('admin.static-pages.show', compact('staticPage'));
     }
 
@@ -90,6 +98,11 @@ class StaticPageController extends Controller
             'title' => $request->title,
             'content' => $request->content,
             'sort_order' => $request->sort_order ?? 0,
+            // Optimization: If name/slug editing is allowed, update it here.
+            // For now, assuming name is constant after creation or handled separately.
+            // Updating metadata if needed:
+            'meta_title' => $request->title,
+            'meta_description' => \Illuminate\Support\Str::limit(strip_tags($request->content), 160),
         ]);
 
         return redirect()->route('admin.static-pages.index')->with('success', 'Static page updated successfully.');

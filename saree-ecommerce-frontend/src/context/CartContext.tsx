@@ -6,11 +6,13 @@ import { useAuth } from './AuthContext';
 interface CartContextType {
   cartItems: CartItem[];
   cartCount: number;
-  addToCart: (product: SareeProduct, quantity?: number, selectedColor?: string, blouseOption?: string, selectedSize?: string) => Promise<string>;
+  addToCart: (product: SareeProduct, quantity?: number, selectedColor?: string, blouseOption?: string, selectedSize?: string, price?: number) => Promise<string>;
   removeFromCart: (cartItemId: string, selectedColor?: string, selectedSize?: string) => void;
   updateQuantity: (cartItemId: string, quantity: number, selectedColor?: string, selectedSize?: string) => void;
   clearCart: () => void;
   getCartTotal: () => number;
+  getCartTotalMRP: () => number;
+  getCartTotalSellingPrice: () => number;
   loadCartItems: () => void;
   isProductInCart: (productId: string, selectedColor?: string, selectedSize?: string) => boolean;
   getCartCount: () => number;
@@ -45,10 +47,10 @@ const matchCartItem = (item: CartItem, productId: string, color?: string, size?:
   const itemSize = (item.selectedSize || '').toLowerCase().trim();
   const targetColor = (color || '').toLowerCase().trim();
   const targetSize = (size || '').toLowerCase().trim();
-  
-  return itemProductId === productId?.toString() && 
-         itemColor === targetColor && 
-         itemSize === targetSize;
+
+  return itemProductId === productId?.toString() &&
+    itemColor === targetColor &&
+    itemSize === targetSize;
 };
 
 export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
@@ -64,20 +66,23 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     if (isAuthenticated) {
       try {
         const apiCartItems = await cartAPI.getCartItems();
-        const transformedItems: CartItem[] = apiCartItems.map((item: any) => ({
-          id: item.id?.toString(),
-          product: {
-            ...item.product,
-            id: item.product?.id?.toString(),
-            imageUrl: item.product?.image_url || item.product?.imageUrl,
-            imageUrls: item.product?.image_urls || item.product?.imageUrls || [],
-            stockQuantity: item.product?.stock_quantity || item.product?.stockQuantity || 999,
-          },
-          quantity: item.quantity,
-          selectedColor: item.selected_color || '',
-          selectedSize: item.selected_size || '',
-          blouseOption: item.blouse_option || '',
-        }));
+        const transformedItems: CartItem[] = apiCartItems
+          .filter((item: any) => item.product && (item.product.id || item.product_id)) // Filter out invalid items
+          .map((item: any) => ({
+            id: item.id?.toString(),
+            product: {
+              ...item.product,
+              id: item.product?.id?.toString(),
+              imageUrl: item.product?.image_url || item.product?.imageUrl,
+              imageUrls: item.product?.image_urls || item.product?.imageUrls || [],
+              stockQuantity: item.product?.stock_quantity || item.product?.stockQuantity || 999,
+            },
+            quantity: Number(item.quantity) || 0,
+            selectedColor: item.selected_color || '',
+            selectedSize: item.selected_size || '',
+            blouseOption: item.blouse_option || '',
+            price: Number(item.price) || 0,
+          }));
         setCartItems(transformedItems);
       } catch (error) {
         console.error('Error loading cart items:', error);
@@ -92,7 +97,13 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     try {
       const stored = localStorage.getItem(CART_STORAGE_KEY);
       if (stored) {
-        setCartItems(JSON.parse(stored));
+        const parsed = JSON.parse(stored);
+        // Ensure quantity fields are numbers to avoid string concatenation when summing
+        const normalized = parsed.map((it: any) => ({
+          ...it,
+          quantity: Number(it.quantity) || 0,
+        }));
+        setCartItems(normalized);
       }
     } catch (error) {
       console.error('Error loading from localStorage:', error);
@@ -108,14 +119,16 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   };
 
   const addToCart = async (
-    product: SareeProduct, 
-    quantity: number = 1, 
-    selectedColor: string = '', 
+    product: SareeProduct,
+    quantity: number = 1,
+    selectedColor: string = '',
     blouseOption: string = '',
-    selectedSize: string = ''
+    selectedSize: string = '',
+    price: number = 0 // Default to 0, or product.price? Better to let caller determine.
   ): Promise<string> => {
+    quantity = Number(quantity) || 1;
     const stockAvailable = product.stockQuantity || 999;
-    
+
     if (isAuthenticated) {
       try {
         const cartData = {
@@ -124,35 +137,90 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
           selected_color: selectedColor,
           selected_size: selectedSize,
           blouse_option: blouseOption,
+          price: price || product.final_price || product.price, // Ensure price is sent
         };
-        
+
         const response = await cartAPI.addToCart(cartData);
-        
+
         // Check for stock error
         if (response.error) {
           return response.error;
         }
-        
+
         // Reload cart items to get the updated cart with correct IDs from the server
         await loadCartItems();
-        
+
         return response.is_update ? 'Cart quantity updated' : 'Added to cart';
       } catch (error: any) {
-        console.error('Error adding to cart:', error);
-        return error.message || 'Failed to add to cart';
+        console.error('Error adding to cart (will try localStorage):', error);
+
+        // If API fails (possibly due to auth issues), fall back to localStorage
+        // This ensures cart functionality continues to work
+        let resultMessage = 'Added to cart';
+
+        setCartItems(prevItems => {
+          // Find existing item matching product + color + size
+          const existingItem = prevItems.find(item =>
+            matchCartItem(item, product.id?.toString() || '', selectedColor, selectedSize)
+          );
+
+          let newItems: CartItem[];
+
+          if (existingItem) {
+            // Check stock limit
+            const newQuantity = existingItem.quantity + quantity;
+            const stockAvailable = product.stockQuantity || 999;
+            if (newQuantity > stockAvailable) {
+              resultMessage = `Only ${stockAvailable} items available in stock`;
+              return prevItems; // Don't update
+            }
+
+            // Update quantity of existing item
+            newItems = prevItems.map(item =>
+              matchCartItem(item, product.id?.toString() || '', selectedColor, selectedSize)
+                ? { ...item, quantity: newQuantity }
+                : item
+            );
+            resultMessage = 'Cart quantity updated';
+          } else {
+            // Check stock for new item
+            const stockAvailable = product.stockQuantity || 999;
+            if (quantity > stockAvailable) {
+              resultMessage = `Only ${stockAvailable} items available in stock`;
+              return prevItems; // Don't update
+            }
+
+            // Add new cart item
+            const newCartItem: CartItem = {
+              id: generateCartItemId(product.id?.toString() || '', selectedColor, selectedSize),
+              product,
+              quantity,
+              selectedColor,
+              selectedSize,
+              blouseOption,
+              price: price || product.final_price || product.price,
+            };
+            newItems = [...prevItems, newCartItem];
+          }
+
+          saveToLocalStorage(newItems);
+          return newItems;
+        });
+
+        return resultMessage;
       }
     } else {
       // Guest user - use localStorage
       let resultMessage = 'Added to cart';
-      
+
       setCartItems(prevItems => {
         // Find existing item matching product + color + size
-        const existingItem = prevItems.find(item => 
+        const existingItem = prevItems.find(item =>
           matchCartItem(item, product.id?.toString() || '', selectedColor, selectedSize)
         );
-        
+
         let newItems: CartItem[];
-        
+
         if (existingItem) {
           // Check stock limit
           const newQuantity = existingItem.quantity + quantity;
@@ -160,7 +228,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
             resultMessage = `Only ${stockAvailable} items available in stock`;
             return prevItems; // Don't update
           }
-          
+
           // Update quantity of existing item
           newItems = prevItems.map(item =>
             matchCartItem(item, product.id?.toString() || '', selectedColor, selectedSize)
@@ -174,7 +242,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
             resultMessage = `Only ${stockAvailable} items available in stock`;
             return prevItems; // Don't update
           }
-          
+
           // Add new cart item
           const newCartItem: CartItem = {
             id: generateCartItemId(product.id?.toString() || '', selectedColor, selectedSize),
@@ -183,14 +251,15 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
             selectedColor,
             selectedSize,
             blouseOption,
+            price: price || product.final_price || product.price,
           };
           newItems = [...prevItems, newCartItem];
         }
-        
+
         saveToLocalStorage(newItems);
         return newItems;
       });
-      
+
       return resultMessage;
     }
   };
@@ -200,14 +269,14 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       try {
         // Find by ID first, fallback to variant matching
         let cartItem = cartItems.find(item => item.id?.toString() === cartItemId?.toString());
-        
+
         if (!cartItem && selectedColor !== undefined) {
           // Try matching by product variant
-          cartItem = cartItems.find(item => 
+          cartItem = cartItems.find(item =>
             matchCartItem(item, cartItemId, selectedColor, selectedSize)
           );
         }
-        
+
         if (cartItem) {
           await cartAPI.removeFromCart(cartItem.id);
           // Reload cart items to get the updated cart from the server
@@ -215,42 +284,44 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
           return;
         }
       } catch (error) {
-        console.error('Error removing from cart:', error);
+        console.error('Error removing from cart (will try localStorage):', error);
+        // If API fails, fall back to localStorage
       }
     }
 
     setCartItems(prevItems => {
       let newItems: CartItem[];
-      
+
       // Try by cart item ID first
       if (prevItems.some(item => item.id?.toString() === cartItemId?.toString())) {
         newItems = prevItems.filter(item => item.id?.toString() !== cartItemId?.toString());
       } else {
         // Try by product variant
-        newItems = prevItems.filter(item => 
+        newItems = prevItems.filter(item =>
           !matchCartItem(item, cartItemId, selectedColor, selectedSize)
         );
       }
-      
+
       saveToLocalStorage(newItems);
       return newItems;
     });
   };
 
   const updateQuantity = async (cartItemId: string, quantity: number, selectedColor?: string, selectedSize?: string) => {
+    quantity = Number(quantity) || 0;
     if (quantity < 1) return;
-    
+
     if (isAuthenticated) {
       try {
         // Find by ID first, fallback to variant matching
         let cartItem = cartItems.find(item => item.id?.toString() === cartItemId?.toString());
-        
+
         if (!cartItem && selectedColor !== undefined) {
-          cartItem = cartItems.find(item => 
+          cartItem = cartItems.find(item =>
             matchCartItem(item, cartItemId, selectedColor, selectedSize)
           );
         }
-        
+
         if (cartItem) {
           // Check stock limit
           const stockAvailable = cartItem.product.stockQuantity || 999;
@@ -258,21 +329,22 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
             console.warn(`Quantity ${quantity} exceeds stock ${stockAvailable}`);
             return;
           }
-          
+
           await cartAPI.updateCartItem(cartItem.id, quantity);
           await loadCartItems();
           return;
         }
       } catch (error) {
-        console.error('Error updating quantity:', error);
+        console.error('Error updating quantity (will try localStorage):', error);
+        // If API fails, fall back to localStorage
       }
     }
 
     setCartItems(prevItems => {
       const newItems = prevItems.map(item => {
-        const isMatch = item.id?.toString() === cartItemId?.toString() || 
-                        matchCartItem(item, cartItemId, selectedColor, selectedSize);
-        
+        const isMatch = item.id?.toString() === cartItemId?.toString() ||
+          matchCartItem(item, cartItemId, selectedColor, selectedSize);
+
         if (isMatch) {
           // Check stock limit
           const stockAvailable = item.product.stockQuantity || 999;
@@ -281,7 +353,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
         }
         return item;
       });
-      
+
       saveToLocalStorage(newItems);
       return newItems;
     });
@@ -292,7 +364,8 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       try {
         await cartAPI.clearCart();
       } catch (error) {
-        console.error('Error clearing cart:', error);
+        console.error('Error clearing cart (will try localStorage):', error);
+        // If API fails, clear localStorage only
       }
     }
 
@@ -300,8 +373,23 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     saveToLocalStorage([]);
   };
 
+  const getCartTotalMRP = () => {
+    return cartItems.reduce((total, item) => {
+      // price is MRP
+      return total + (item.product.price || 0) * item.quantity;
+    }, 0);
+  };
+
+  const getCartTotalSellingPrice = () => {
+    return cartItems.reduce((total, item) => {
+      // Use stored price if available, else final_price, else discounted_price, else price
+      const itemPrice = item.price ?? item.product?.final_price ?? item.product?.discounted_price ?? item.product?.price ?? 0;
+      return total + itemPrice * item.quantity;
+    }, 0);
+  };
+
   const getCartTotal = () => {
-    return cartItems.reduce((total, item) => total + (item.product?.price || 0) * item.quantity, 0);
+    return getCartTotalSellingPrice();
   };
 
   // Check if a specific product variant is in cart
@@ -336,6 +424,8 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
         updateQuantity,
         clearCart,
         getCartTotal,
+        getCartTotalMRP,
+        getCartTotalSellingPrice,
         loadCartItems,
         isProductInCart,
         getCartCount,

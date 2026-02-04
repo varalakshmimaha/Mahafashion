@@ -19,7 +19,13 @@ class CartController extends Controller
      */
     public function index()
     {
-        $cartItems = Cart::with('product')->where('user_id', Auth::id())->get();
+        $cartItems = Cart::with(['product.variants', 'product.images'])->where('user_id', Auth::id())->get();
+        
+        // Transform the collection to include formatted product data
+        $cartItems = $cartItems->map(function ($item) {
+            $item->product = new \App\Http\Resources\ProductResource($item->product);
+            return $item;
+        });
         
         return response()->json($cartItems);
     }
@@ -32,13 +38,10 @@ class CartController extends Controller
      */
     public function store(Request $request)
     {
-        if (!Auth::check()) {
-            return response()->json(['message' => 'Unauthenticated.'], 401);
-        }
-
         $validator = Validator::make($request->all(), [
             'product_id' => 'required|exists:products,id',
             'quantity' => 'required|integer|min:1',
+            'price' => 'required|numeric|min:0',
             'selected_color' => 'nullable|string',
             'selected_size' => 'nullable|string',
             'blouse_option' => 'nullable|string',
@@ -48,40 +51,16 @@ class CartController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
         
-        try {
-        // Check if product exists and is active
-        $product = Product::where('id', $request->product_id)->where('status', 'active')->first();
-
-        if (!$product) {
-            return response()->json(['message' => 'Product not found or inactive'], 404);
-        }
+        $product = Product::find($request->product_id);
         
-        // Check stock availability
-        $requestedQty = $request->quantity;
-        $stockAvailable = $product->stock_quantity ?? 999; // Default high if no stock tracking
-        
-        // Check if item already exists in cart for this user with SAME color and size
         $existingCartItem = Cart::where('user_id', Auth::id())
                                 ->where('product_id', $request->product_id)
-                                ->where('selected_color', $request->selected_color ?? '')
-                                ->where('selected_size', $request->selected_size ?? '')
+                                ->where('selected_color', $request->selected_color)
+                                ->where('selected_size', $request->selected_size)
                                 ->first();
         
         if ($existingCartItem) {
-            // Calculate new quantity
-            $newQuantity = $existingCartItem->quantity + $requestedQty;
-            
-            // Check if new quantity exceeds stock
-            if ($newQuantity > $stockAvailable) {
-                return response()->json([
-                    'error' => 'Not enough stock available',
-                    'available_stock' => $stockAvailable,
-                    'current_in_cart' => $existingCartItem->quantity
-                ], 400);
-            }
-            
-            // Update quantity if item already exists
-            $existingCartItem->quantity = $newQuantity;
+            $existingCartItem->quantity += $request->quantity;
             $existingCartItem->save();
             
             return response()->json([
@@ -90,19 +69,11 @@ class CartController extends Controller
                 'is_update' => true
             ], 200);
         } else {
-            // Check stock for new item
-            if ($requestedQty > $stockAvailable) {
-                return response()->json([
-                    'error' => 'Not enough stock available',
-                    'available_stock' => $stockAvailable
-                ], 400);
-            }
-            
-            // Create new cart item
             $cartItem = Cart::create([
                 'user_id' => Auth::id(),
                 'product_id' => $request->product_id,
                 'quantity' => $request->quantity,
+                'price' => $request->price,
                 'selected_color' => $request->selected_color ?? '',
                 'selected_size' => $request->selected_size ?? '',
                 'blouse_option' => $request->blouse_option ?? '',
@@ -113,9 +84,6 @@ class CartController extends Controller
                 'message' => 'Product added to cart',
                 'is_update' => false
             ], 201);
-        }
-        } catch (\Exception $e) {
-            return response()->json(['error' => 'Internal Server Error: ' . $e->getMessage()], 500);
         }
     }
 

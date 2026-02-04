@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Maha Fashion Admin Panel</title>
     
     <!-- Bootstrap CSS -->
@@ -22,17 +23,53 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
     <style>
-        :root {
-            --primary-color: {{ \App\Models\Setting::get('theme_primary_color', '#6366f1') }}; 
-            --secondary-color: {{ \App\Models\Setting::get('theme_secondary_color', '#8b5cf6') }}; 
-            --accent-color: {{ \App\Models\Setting::get('theme_accent_color', '#ec4899') }}; 
-            --success-color: {{ \App\Models\Setting::get('theme_success_color', '#10b981') }}; 
-            --warning-color: {{ \App\Models\Setting::get('theme_warning_color', '#f59e0b') }}; 
-            --danger-color: {{ \App\Models\Setting::get('theme_danger_color', '#ef4444') }}; 
-            --dark-color: #1f2937; /* Gray 800 */
-            --light-color: #f9fafb; /* Gray 50 */
-            --sidebar-bg: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-        }
+        /* Dynamic Theme Injection */
+        @if(isset($theme) || ($theme = \App\Models\Theme::where('is_active', true)->first()))
+            :root {
+                --primary-color: {{ $theme->primary_color }};
+                --secondary-color: {{ $theme->secondary_color }};
+                --accent-color: {{ $theme->accent_color ?? '#ec4899' }};
+                --success-color: {{ $theme->success_color ?? '#10b981' }};
+                --warning-color: {{ $theme->warning_color ?? '#f59e0b' }};
+                --danger-color: {{ $theme->danger_color ?? '#ef4444' }};
+                
+                /* Extended Theme Properties */
+                --button-color: {{ $theme->button_color ?: $theme->primary_color }};
+                --text-color: {{ $theme->text_color }};
+                --bg-color: {{ $theme->background_color }};
+                --font-family: {!! $theme->font_family !!};
+                --border-radius: {{ $theme->border_radius }};
+                
+                --dark-color: {{ $theme->text_color }}; /* Override dark with text color */
+                --light-color: #f9fafb;
+                --sidebar-bg: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            }
+            body {
+                 font-family: var(--font-family) !important;
+            }
+            .sidebar {
+                border-top-right-radius: var(--border-radius);
+                border-bottom-right-radius: var(--border-radius);
+            }
+            .btn, .btn-primary {
+                 background: var(--button-color) !important;
+                 border-radius: var(--border-radius) !important;
+                 border: none !important;
+            }
+        @else
+            /* Fallback to legacy settings */
+            :root {
+                --primary-color: {{ \App\Models\Setting::get('theme_primary_color', '#6366f1') }}; 
+                --secondary-color: {{ \App\Models\Setting::get('theme_secondary_color', '#8b5cf6') }}; 
+                --accent-color: {{ \App\Models\Setting::get('theme_accent_color', '#ec4899') }}; 
+                --success-color: {{ \App\Models\Setting::get('theme_success_color', '#10b981') }}; 
+                --warning-color: {{ \App\Models\Setting::get('theme_warning_color', '#f59e0b') }}; 
+                --danger-color: {{ \App\Models\Setting::get('theme_danger_color', '#ef4444') }}; 
+                --dark-color: #1f2937;
+                --light-color: #f9fafb;
+                --sidebar-bg: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            }
+        @endif
         
         * {
             margin: 0;
@@ -321,6 +358,16 @@
                     Promotions
                 </a>
                 
+                <a href="{{ route('admin.offers.index') }}" class="flex items-center px-6 py-3 text-white {{ request()->routeIs('admin.offers.*') ? 'active' : '' }}">
+                    <i class="fas fa-gift mr-3"></i>
+                    Offers
+                </a>
+                
+                <a href="{{ route('admin.payment-gateways.index') }}" class="flex items-center px-6 py-3 text-white {{ request()->routeIs('admin.payment-gateways.*') ? 'active' : '' }}">
+                    <i class="fas fa-credit-card mr-3"></i>
+                    Payment Gateways
+                </a>
+                
                 <a href="{{ route('admin.reports.index') }}" class="flex items-center px-6 py-3 text-white {{ request()->routeIs('admin.reports.*') ? 'active' : '' }}">
                     <i class="fas fa-chart-bar mr-3"></i>
                     Reports
@@ -331,9 +378,9 @@
                     Settings
                 </a>
                 
-                <a href="{{ route('admin.settings.theme') }}" class="flex items-center px-6 py-3 text-white {{ request()->routeIs('admin.settings.theme') ? 'active' : '' }}">
+                <a href="{{ route('admin.themes.index') }}" class="flex items-center px-6 py-3 text-white {{ request()->routeIs('admin.themes.*') ? 'active' : '' }}">
                     <i class="fas fa-palette mr-3"></i>
-                    Theme
+                    Theme Console
                 </a>
                 
                 <a href="{{ route('admin.logout') }}" class="flex items-center px-6 py-3 text-white mt-4 border-t border-gray-700">

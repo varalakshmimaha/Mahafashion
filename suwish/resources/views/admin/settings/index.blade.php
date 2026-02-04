@@ -141,53 +141,46 @@
                             </div>
                         </div>
 
-                        <!-- Social Media Section -->
+                        <!-- Dynamic Social Media Section -->
                         <div class="mb-4">
-                            <h5 class="mb-3 text-primary">Social Media</h5>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label for="facebook" class="form-label">Facebook URL</label>
-                                        <input type="url" class="form-control @error('facebook') is-invalid @enderror" 
-                                               id="facebook" name="facebook" 
-                                               value="{{ old('facebook', $settings['facebook']) }}" placeholder="https://facebook.com/yourpage">
-                                        @error('facebook')
-                                            <div class="invalid-feedback">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-
-                                    <div class="mb-3">
-                                        <label for="instagram" class="form-label">Instagram URL</label>
-                                        <input type="url" class="form-control @error('instagram') is-invalid @enderror" 
-                                               id="instagram" name="instagram" 
-                                               value="{{ old('instagram', $settings['instagram']) }}" placeholder="https://instagram.com/yourpage">
-                                        @error('instagram')
-                                            <div class="invalid-feedback">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-                                </div>
-
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label for="twitter" class="form-label">Twitter URL</label>
-                                        <input type="url" class="form-control @error('twitter') is-invalid @enderror" 
-                                               id="twitter" name="twitter" 
-                                               value="{{ old('twitter', $settings['twitter']) }}" placeholder="https://twitter.com/yourpage">
-                                        @error('twitter')
-                                            <div class="invalid-feedback">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-
-                                    <div class="mb-3">
-                                        <label for="whatsapp" class="form-label">WhatsApp Number</label>
-                                        <input type="text" class="form-control @error('whatsapp') is-invalid @enderror" 
-                                               id="whatsapp" name="whatsapp" 
-                                               value="{{ old('whatsapp', $settings['whatsapp']) }}" placeholder="e.g., +1234567890">
-                                        @error('whatsapp')
-                                            <div class="invalid-feedback">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-                                </div>
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="text-primary m-0">Social Media Links</h5>
+                                <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addSocialLinkModal">
+                                    <i class="fas fa-plus"></i> Add New Link
+                                </button>
+                            </div>
+                            
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-centered mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th style="width: 50px;">Icon</th>
+                                            <th>Platform</th>
+                                            <th>URL</th>
+                                            <th style="width: 100px;">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="socialLinksTableBody">
+                                        @forelse($socialLinks as $link)
+                                            <tr id="link-row-{{ $link->id }}">
+                                                <td class="text-center">
+                                                    <i class="lucide-{{ $link->icon }} fab fa-{{ $link->icon === 'facebook' ? 'facebook-f' : ($link->icon === 'twitter' ? 'twitter' : ($link->icon === 'instagram' ? 'instagram' : ($link->icon === 'youtube' ? 'youtube' : ($link->icon === 'linkedin' ? 'linkedin-in' : ($link->icon === 'whatsapp' ? 'whatsapp' : 'globe'))))) }}"></i>
+                                                </td>
+                                                <td>{{ $link->platform }}</td>
+                                                <td><a href="{{ $link->url }}" target="_blank" class="text-truncate d-inline-block" style="max-width: 200px;">{{ $link->url }}</a></td>
+                                                <td>
+                                                    <button type="button" class="btn btn-sm btn-danger" onclick="deleteSocialLink({{ $link->id }})">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        @empty
+                                            <tr id="no-links-row">
+                                                <td colspan="4" class="text-center text-muted">No social media links found. Add one to get started!</td>
+                                            </tr>
+                                        @endforelse
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
 
@@ -216,5 +209,97 @@
             </div>
         </div>
     </div>
+    <!-- Add Social Link Modal -->
+    <div class="modal fade" id="addSocialLinkModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Social Media Link</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addSocialLinkForm">
+                        <div class="mb-3">
+                            <label class="form-label">Platform Name</label>
+                            <input type="text" class="form-control" name="platform" placeholder="e.g. YouTube Channel" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">URL</label>
+                            <input type="url" class="form-control" name="url" placeholder="https://..." required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Icon</label>
+                            <select class="form-select" name="icon" required>
+                                <option value="facebook">Facebook</option>
+                                <option value="instagram">Instagram</option>
+                                <option value="twitter">Twitter</option>
+                                <option value="linkedin">LinkedIn</option>
+                                <option value="youtube">YouTube</option>
+                                <option value="whatsapp">WhatsApp</option>
+                                <option value="globe">Globe (Website)</option>
+                                <option value="link">Link (Generic)</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="saveSocialLink()">Save Link</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
+
+<script>
+    function saveSocialLink() {
+        const form = document.getElementById('addSocialLinkForm');
+        const formData = new FormData(form);
+        const data = Object.fromEntries(formData.entries());
+
+        fetch("{{ route('admin.social-media-links.store') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.link) {
+                location.reload(); // Reload to show new link
+            } else {
+                alert('Failed to add link');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred');
+        });
+    }
+
+    function deleteSocialLink(id) {
+        if (!confirm('Are you sure you want to delete this link?')) return;
+
+        fetch(`/admin/social-media-links/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                location.reload();
+            } else {
+                alert('Failed to delete link');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred');
+        });
+    }
+</script>
 @endsection

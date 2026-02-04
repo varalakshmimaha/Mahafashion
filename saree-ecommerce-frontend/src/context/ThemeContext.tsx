@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { settingsAPI } from '../services/api';
+import { settingsAPI, themeAPI } from '../services/api';
 import { themes, defaultTheme, Theme, ThemeColors } from '../styles/themes';
 
 interface ThemeContextType {
@@ -48,7 +48,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const applyColorsToDocument = (colors: ThemeColors) => {
     const root = document.documentElement;
-    
+
     // Base colors
     root.style.setProperty('--color-primary', colors.primary);
     root.style.setProperty('--color-secondary', colors.secondary);
@@ -70,39 +70,61 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const fetchTheme = async () => {
     setIsLoading(true);
     try {
-      const settings = await settingsAPI.getSettings();
-      // The API returns 'theme' object or strict fields? 
-      // Based on Api code: 'theme' => [ 'primary_color' => ... ]
-      
-      let loadedColors: ThemeColors;
+      // Use the new dedicated theme API
+      const themeData = await themeAPI.getActiveTheme();
 
-      if (settings.theme) {
-         loadedColors = {
-            primary: settings.theme.primary_color || defaultTheme.colors.primary,
-            secondary: settings.theme.secondary_color || defaultTheme.colors.secondary,
-            accent: settings.theme.accent_color || defaultTheme.colors.accent,
-            success: settings.theme.success_color || defaultTheme.colors.success,
-            warning: settings.theme.warning_color || defaultTheme.colors.warning,
-            danger: settings.theme.danger_color || defaultTheme.colors.danger,
-         };
+      if (themeData) {
+        const loadedColors: ThemeColors = {
+          primary: themeData.primary_color || defaultTheme.colors.primary,
+          secondary: themeData.secondary_color || defaultTheme.colors.secondary,
+          accent: themeData.accent_color || defaultTheme.colors.accent,
+          success: themeData.success_color || defaultTheme.colors.success,
+          warning: themeData.warning_color || defaultTheme.colors.warning,
+          danger: themeData.danger_color || defaultTheme.colors.danger,
+        };
+
+        setCustomColors(loadedColors);
+        applyColorsToDocument(loadedColors);
+
+        // Apply extended theme properties (fonts, border-radius, background)
+        const root = document.documentElement;
+        if (themeData.font_family) root.style.setProperty('--font-sans', themeData.font_family);
+        if (themeData.border_radius) root.style.setProperty('--border-radius', themeData.border_radius);
+        if (themeData.background_color) root.style.setProperty('--color-background', themeData.background_color);
+        if (themeData.text_color) root.style.setProperty('--color-text', themeData.text_color);
+
+        // Ensure --color-button is always set (legacy)
+        root.style.setProperty('--color-button', themeData.button_color || loadedColors.primary);
+
+        // New Button Theme Variables
+        root.style.setProperty('--btn-bg', themeData.button_color || loadedColors.primary);
+        root.style.setProperty('--btn-hover-bg', themeData.button_hover_color || adjustColor(loadedColors.primary, -10));
+
+        // Ensure text color is valid, default to white if not set or invalid
+        const btnTextColor = themeData.button_text_color || '#ffffff';
+        root.style.setProperty('--btn-text-color', btnTextColor);
+
+        root.style.setProperty('--btn-font-size', themeData.button_font_size || '1rem');
+        root.style.setProperty('--btn-font-weight', themeData.button_font_weight || '600');
+        root.style.setProperty('--btn-radius', themeData.border_radius || '0.375rem');
+
+        // Helper for matching preset (optional)
+        const match = themes.find(t =>
+          t.colors.primary.toLowerCase() === loadedColors.primary.toLowerCase()
+        );
+        setCurrentTheme(match || null);
       } else {
-         loadedColors = defaultTheme.colors;
+        // Fallback to defaults
+        applyColorsToDocument(defaultTheme.colors);
+        setCustomColors(defaultTheme.colors);
+        document.documentElement.style.setProperty('--color-button', defaultTheme.colors.primary);
       }
-
-      setCustomColors(loadedColors);
-      applyColorsToDocument(loadedColors);
-
-      // Match preset
-      const match = themes.find(t => 
-        t.colors.primary.toLowerCase() === loadedColors.primary.toLowerCase() &&
-        t.colors.secondary.toLowerCase() === loadedColors.secondary.toLowerCase()
-      );
-      setCurrentTheme(match || null);
 
     } catch (error) {
       console.error('Failed to load theme:', error);
       applyColorsToDocument(defaultTheme.colors);
       setCustomColors(defaultTheme.colors);
+      document.documentElement.style.setProperty('--color-button', defaultTheme.colors.primary);
     } finally {
       setIsLoading(false);
     }
@@ -110,10 +132,18 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     fetchTheme();
+
+    // Refresh theme when user returns to the tab
+    const handleFocus = () => {
+      fetchTheme();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
   }, []);
 
   const refreshTheme = async () => {
-     await fetchTheme();
+    await fetchTheme();
   };
 
   const applyThemePreset = async (themeId: string) => {
@@ -143,8 +173,15 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const updateThemeColors = async (colors: Partial<ThemeColors>) => {
     if (!customColors) return;
-    const newColors = { ...customColors, ...colors };
-    
+    const newColors: ThemeColors = {
+      primary: colors.primary ?? customColors.primary,
+      secondary: colors.secondary ?? customColors.secondary,
+      accent: colors.accent ?? customColors.accent,
+      success: colors.success ?? customColors.success,
+      warning: colors.warning ?? customColors.warning,
+      danger: colors.danger ?? customColors.danger,
+    };
+
     setCustomColors(newColors);
     applyColorsToDocument(newColors);
     setCurrentTheme(null); // Custom

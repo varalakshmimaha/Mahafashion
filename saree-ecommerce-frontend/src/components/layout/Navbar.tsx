@@ -12,7 +12,7 @@ const Navbar = () => {
   const [logo, setLogo] = useState<string | null>(null);
   const [websiteName, setWebsiteName] = useState<string>('Maha Fashion'); // Default to 'Maha Fashion'
   const navigate = useNavigate();
-  
+
   const { cartCount } = useCart();
   const { wishlistCount } = useWishlist();
 
@@ -42,8 +42,8 @@ const Navbar = () => {
 
   return (
     <header className="bg-white shadow-md sticky top-0 z-40">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
           {/* Mobile Menu Button */}
           <button
             className="md:hidden p-2 text-gray-600"
@@ -56,11 +56,11 @@ const Navbar = () => {
           <div className="flex-shrink-0">
             {logo ? (
               <Link to="/" className="flex items-center">
-                <img 
-                  src={logo} 
-                  alt="Logo" 
+                <img
+                  src={logo}
+                  alt="Logo"
                   className="h-10 object-contain"
-                  onError={(e) => {
+                  onError={() => {
                     // Fallback to text if logo fails to load
                     setLogo(null);
                   }}
@@ -81,8 +81,8 @@ const Navbar = () => {
             <Link to="/products" className="text-gray-600 hover:text-primary font-medium transition-colors">
               Products
             </Link>
-            <Link to="/collections" className="text-gray-600 hover:text-primary font-medium transition-colors">
-              Collections
+            <Link to="/ethnic-wear" className="text-gray-600 hover:text-primary font-medium transition-colors">
+              Ethnic Wear
             </Link>
             <Link to="/track-order" className="text-gray-600 hover:text-primary font-medium transition-colors">
               Track Orders
@@ -106,10 +106,10 @@ const Navbar = () => {
                 </button>
               </form>
             </div>
-            
+
             {/* User Account */}
             <ProfileDropdown />
-            
+
             {/* Wishlist with Count */}
             <Link to="/wishlist" className="relative text-gray-600 hover:text-accent transition-colors">
               <FiHeart size={24} />
@@ -119,7 +119,7 @@ const Navbar = () => {
                 </span>
               )}
             </Link>
-            
+
             {/* Cart with Count */}
             <Link to="/cart" className="relative text-gray-600 hover:text-primary transition-colors">
               <FiShoppingCart size={24} />
@@ -151,29 +151,29 @@ const Navbar = () => {
 
             {/* Mobile Navigation Links */}
             <nav className="flex flex-col space-y-3">
-              <Link 
-                to="/" 
+              <Link
+                to="/"
                 className="text-gray-600 hover:text-gray-800 font-medium py-2"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Home
               </Link>
-              <Link 
-                to="/products" 
+              <Link
+                to="/products"
                 className="text-gray-600 hover:text-gray-800 font-medium py-2"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Products
               </Link>
-              <Link 
-                to="/collections" 
+              <Link
+                to="/ethnic-wear"
                 className="text-gray-600 hover:text-gray-800 font-medium py-2"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                Collections
+                Ethnic Wear
               </Link>
-              <Link 
-                to="/track-order" 
+              <Link
+                to="/track-order"
                 className="text-gray-600 hover:text-gray-800 font-medium py-2"
                 onClick={() => setMobileMenuOpen(false)}
               >

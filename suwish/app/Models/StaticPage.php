@@ -16,8 +16,12 @@ class StaticPage extends Model
      */
     protected $fillable = [
         'name',
+        'slug',
         'title',
         'content',
+        'meta_title',
+        'meta_description',
+        'status',
         'sort_order',
     ];
 

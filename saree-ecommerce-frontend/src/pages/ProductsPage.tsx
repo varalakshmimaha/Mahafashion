@@ -1,17 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useParams } from 'react-router-dom';
 import { Grid3X3, List, SlidersHorizontal, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import ProductFiltersAdvanced from '../components/product/ProductFiltersAdvanced';
 import ProductCard from '../components/product/ProductCard';
 import Breadcrumb from '../components/ui/Breadcrumb';
-import { SareeProduct } from '../types';
+import { SareeProduct, Category as CategoryType } from '../types';
 import { productAPI, categoryAPI } from '../services/api';
-
-interface Category {
-  id: number;
-  name: string;
-  slug: string;
-}
 
 const PRODUCTS_PER_PAGE = 12;
 
@@ -23,75 +17,126 @@ const ProductsPage = () => {
   const [sortBy, setSortBy] = useState('newest');
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [categories, setCategories] = useState<CategoryType[]>([]);
+  const [subcategories, setSubcategories] = useState<any[]>([]);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalProducts, setTotalProducts] = useState(0);
 
   // URL params
   const [searchParams, setSearchParams] = useSearchParams();
   const { slug } = useParams<{ slug: string }>();
   const searchQuery = searchParams.get('search') || '';
-  const categoryFilter = slug || searchParams.get('category') || '';
+  const categoryParam = searchParams.get('category') || slug || '';
+  const subcategoryParam = searchParams.get('subcategory') || '';
 
   // Filters state
   const [filters, setFilters] = useState({
-    categories: categoryFilter ? [categoryFilter] : [] as string[],
+    categories: categoryParam ? categoryParam.split(',') : [] as string[],
+    subcategories: subcategoryParam ? subcategoryParam.split(',') : [] as string[],
     priceRange: '',
     colors: [] as string[],
     fabrics: [] as string[],
     occasions: [] as string[],
   });
 
-  // Available filter options (extracted from products)
+  // Available filter options
   const [availableFilters, setAvailableFilters] = useState({
     categories: [] as { slug: string; name: string; count?: number }[],
+    subcategories: [] as { slug: string; name: string; category_slug: string }[],
     colors: [] as string[],
     fabrics: [] as string[],
     occasions: [] as string[],
   });
 
-  // Fetch products
+  // Fetch products and categories
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [productsResponse, categoriesResponse] = await Promise.all([
-          productAPI.getProducts(),
-          categoryAPI.getCategories().catch(() => []),
-        ]);
-
-        const productData = productsResponse.data || productsResponse;
-        setProducts(productData);
+        
+        // Fetch categories
+        const categoriesResponse = await categoryAPI.getCategories().catch(() => []);
         setCategories(categoriesResponse || []);
+        
+        // Build category filter options
+        const categoryOptions = (categoriesResponse || []).map((cat: CategoryType) => ({
+          slug: cat.slug,
+          name: cat.name,
+          count: 0, // Will be updated after product fetch
+        }));
+        
+        // Prepare query parameters for unified product API
+        const params: any = { page: currentPage };
+        
+        if (filters.categories.length > 0) params.category = filters.categories;
+        if (filters.subcategories.length > 0) params.sub_category = filters.subcategories;
+        if (filters.priceRange) params.price = filters.priceRange;
+        if (filters.colors.length > 0) params.color = filters.colors;
+        if (filters.fabrics.length > 0) params.fabric = filters.fabrics;
+        if (filters.occasions.length > 0) params.occasion = filters.occasions;
+        if (searchQuery) params.search = searchQuery;
+        if (sortBy) params.sort = sortBy;
 
-        // Extract available filter options from products
+        // Fetch products
+        const productsResponse = await productAPI.getProducts(params);
+        
+        const productData = productsResponse.data || productsResponse;
+        setProducts(productData.data || productData);
+        setTotalPages(productData.last_page || 1);
+        setTotalProducts(productData.total || (productData.data ? productData.data.length : productData.length));
+        
+        // Fetch subcategories for the selected category
+        if (categoryParam) {
+          try {
+            const subcats = await categoryAPI.getSubcategories(categoryParam);
+            setSubcategories(subcats || []);
+            
+            // Build subcategory filter options
+            const subcategoryOptions = (subcats || []).map((sub: any) => ({
+              slug: sub.slug,
+              name: sub.name,
+              category_slug: categoryParam,
+            }));
+            
+            setAvailableFilters(prev => ({
+              ...prev,
+              subcategories: subcategoryOptions,
+            }));
+          } catch (error) {
+            console.error('Error fetching subcategories:', error);
+            setSubcategories([]);
+            setAvailableFilters(prev => ({
+              ...prev,
+              subcategories: [],
+            }));
+          }
+        } else {
+          setSubcategories([]);
+          setAvailableFilters(prev => ({
+            ...prev,
+            subcategories: [],
+          }));
+        }
+        
+        // Extract other filter options from products
         const colors = new Set<string>();
         const fabrics = new Set<string>();
         const occasions = new Set<string>();
 
-        productData.forEach((product: SareeProduct) => {
+        const productItems = productData.data || productData;
+        productItems.forEach((product: SareeProduct) => {
           if (product.color) colors.add(product.color);
           if (product.fabric) fabrics.add(product.fabric);
           if (product.occasion) occasions.add(product.occasion);
         });
-
-        // Build category counts
-        const categoryCounts: { [key: string]: number } = {};
-        productData.forEach((product: SareeProduct) => {
-          const catSlug = product.primarySubcategory?.category_slug;
-          if (catSlug) {
-            categoryCounts[catSlug] = (categoryCounts[catSlug] || 0) + 1;
-          }
-        });
-
-        setAvailableFilters({
-          categories: (categoriesResponse || []).map((cat: Category) => ({
-            slug: cat.slug,
-            name: cat.name,
-            count: categoryCounts[cat.slug] || 0,
-          })),
+        
+        setAvailableFilters(prev => ({
+          ...prev,
+          categories: categoryOptions,
           colors: Array.from(colors),
           fabrics: Array.from(fabrics),
           occasions: Array.from(occasions),
-        });
+        }));
       } catch (error) {
         console.error('Error fetching products:', error);
       } finally {
@@ -100,113 +145,27 @@ const ProductsPage = () => {
     };
 
     fetchData();
-  }, []);
+  }, [categoryParam, subcategoryParam, searchQuery, sortBy, currentPage]);
 
   // Update filters when URL changes
   useEffect(() => {
-    if (categoryFilter && !filters.categories.includes(categoryFilter)) {
-      setFilters(prev => ({
-        ...prev,
-        categories: [categoryFilter],
-      }));
-    }
-  }, [categoryFilter]);
+    const newFilters = {
+      categories: categoryParam ? categoryParam.split(',') : [],
+      subcategories: subcategoryParam ? subcategoryParam.split(',') : [],
+      priceRange: filters.priceRange,
+      colors: filters.colors,
+      fabrics: filters.fabrics,
+      occasions: filters.occasions,
+    };
+    
+    setFilters(newFilters);
+  }, [categoryParam, subcategoryParam]);
 
-  // Filter and sort products
-  const filteredProducts = useMemo(() => {
-    let result = [...products];
-
-    // Search filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      result = result.filter(product =>
-        product.name?.toLowerCase().includes(query) ||
-        product.description?.toLowerCase().includes(query) ||
-        product.fabric?.toLowerCase().includes(query) ||
-        product.color?.toLowerCase().includes(query) ||
-        product.occasion?.toLowerCase().includes(query)
-      );
-    }
-
-    // Category filter
-    if (filters.categories.length > 0) {
-      result = result.filter(product =>
-        filters.categories.includes(product.primarySubcategory?.category_slug || '')
-      );
-    }
-
-    // Price range filter
-    if (filters.priceRange) {
-      const priceRanges: { [key: string]: { min: number; max: number } } = {
-        'under-1000': { min: 0, max: 1000 },
-        '1000-5000': { min: 1000, max: 5000 },
-        '5000-10000': { min: 5000, max: 10000 },
-        'above-10000': { min: 10000, max: Infinity },
-      };
-      const range = priceRanges[filters.priceRange];
-      if (range) {
-        result = result.filter(product =>
-          product.price >= range.min && product.price < range.max
-        );
-      }
-    }
-
-    // Color filter
-    if (filters.colors.length > 0) {
-      result = result.filter(product =>
-        product.color && filters.colors.some(c => 
-          product.color?.toLowerCase().includes(c.toLowerCase())
-        )
-      );
-    }
-
-    // Fabric filter
-    if (filters.fabrics.length > 0) {
-      result = result.filter(product =>
-        product.fabric && filters.fabrics.some(f =>
-          product.fabric?.toLowerCase().includes(f.toLowerCase())
-        )
-      );
-    }
-
-    // Occasion filter
-    if (filters.occasions.length > 0) {
-      result = result.filter(product =>
-        product.occasion && filters.occasions.some(o =>
-          product.occasion?.toLowerCase().includes(o.toLowerCase())
-        )
-      );
-    }
-
-    // Sort
-    switch (sortBy) {
-      case 'price-low-high':
-        result.sort((a, b) => a.price - b.price);
-        break;
-      case 'price-high-low':
-        result.sort((a, b) => b.price - a.price);
-        break;
-      case 'name-asc':
-        result.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-        break;
-      case 'popularity':
-        // Sort by some popularity metric if available
-        break;
-      case 'newest':
-      default:
-        // Keep default order (newest first)
-        break;
-    }
-
-    return result;
-  }, [products, searchQuery, filters, sortBy]);
-
-  // Pagination
-  const totalPages = Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE);
+  // Pagination - using the state variables we defined
   const paginatedProducts = useMemo(() => {
     const start = (currentPage - 1) * PRODUCTS_PER_PAGE;
-    return filteredProducts.slice(start, start + PRODUCTS_PER_PAGE);
-  }, [filteredProducts, currentPage]);
+    return products.slice(start, start + PRODUCTS_PER_PAGE);
+  }, [products, currentPage]);
 
   // Reset page when filters change
   useEffect(() => {
@@ -219,18 +178,64 @@ const ProductsPage = () => {
       ...prev,
       [filterType]: value,
     }));
+    
+    // Update URL parameters based on filter type
+    const newParams = new URLSearchParams(searchParams);
+    
+    switch (filterType) {
+      case 'categories':
+        if (Array.isArray(value) && value.length > 0) {
+          newParams.set('category', value.join(','));
+        } else {
+          newParams.delete('category');
+        }
+        // When changing category, also clear subcategory
+        newParams.delete('subcategory');
+        break;
+      case 'subcategories':
+        if (Array.isArray(value) && value.length > 0) {
+          newParams.set('subcategory', value.join(','));
+        } else {
+          newParams.delete('subcategory');
+        }
+        break;
+      case 'priceRange':
+        if (value) {
+          newParams.set('price', value as string);
+        } else {
+          newParams.delete('price');
+        }
+        break;
+      case 'colors':
+      case 'fabrics':
+      case 'occasions':
+        // For other filters, we'll just update the state
+        // and let the API handle them
+        break;
+      default:
+        break;
+    }
+    
+    setSearchParams(newParams);
   };
 
   // Clear all filters
   const handleClearAll = () => {
     setFilters({
       categories: [],
+      subcategories: [],
       priceRange: '',
       colors: [],
       fabrics: [],
       occasions: [],
     });
-    setSearchParams({});
+    
+    // Preserve search parameter but clear filters
+    const newParams = new URLSearchParams();
+    if (searchParams.get('search')) {
+      newParams.set('search', searchParams.get('search')!);
+    }
+    setSearchParams(newParams);
   };
 
   // Get page title
@@ -247,7 +252,7 @@ const ProductsPage = () => {
 
   // Build breadcrumb items
   const breadcrumbItems = useMemo(() => {
-    const items = [{ label: 'Products', href: '/products' }];
+    const items: { label: string; href?: string }[] = [{ label: 'Products', href: '/products' }];
     
     if (filters.categories.length === 1) {
       const cat = categories.find(c => c.slug === filters.categories[0]);
@@ -349,7 +354,7 @@ const ProductsPage = () => {
             {getPageTitle()}
           </h1>
           <p className="mt-2 text-gray-600">
-            {filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''} found
+            {totalProducts} product{totalProducts !== 1 ? 's' : ''} found
           </p>
         </div>
 
@@ -375,9 +380,9 @@ const ProductsPage = () => {
               >
                 <SlidersHorizontal size={18} />
                 <span>Filters</span>
-                {(filters.categories.length + filters.colors.length + filters.fabrics.length + filters.occasions.length + (filters.priceRange ? 1 : 0)) > 0 && (
+                {(filters.categories.length + filters.subcategories.length + filters.colors.length + filters.fabrics.length + filters.occasions.length + (filters.priceRange ? 1 : 0)) > 0 && (
                   <span className="bg-primary text-white text-xs px-2 py-0.5 rounded-full">
-                    {filters.categories.length + filters.colors.length + filters.fabrics.length + filters.occasions.length + (filters.priceRange ? 1 : 0)}
+                    {filters.categories.length + filters.subcategories.length + filters.colors.length + filters.fabrics.length + filters.occasions.length + (filters.priceRange ? 1 : 0)}
                   </span>
                 )}
               </button>
@@ -429,7 +434,7 @@ const ProductsPage = () => {
             </div>
 
             {/* Active Filters Tags */}
-            {(filters.categories.length > 0 || filters.colors.length > 0 || filters.fabrics.length > 0 || filters.occasions.length > 0 || filters.priceRange) && (
+            {(filters.categories.length > 0 || filters.subcategories.length > 0 || filters.colors.length > 0 || filters.fabrics.length > 0 || filters.occasions.length > 0 || filters.priceRange) && (
               <div className="flex flex-wrap gap-2 mb-6">
                 {filters.categories.map(cat => {
                   const category = categories.find(c => c.slug === cat);
@@ -441,6 +446,23 @@ const ProductsPage = () => {
                       {category?.name || cat}
                       <button
                         onClick={() => handleFilterChange('categories', filters.categories.filter(c => c !== cat))}
+                        className="hover:bg-primary/20 rounded-full p-0.5"
+                      >
+                        <X size={14} />
+                      </button>
+                    </span>
+                  );
+                })}
+                {filters.subcategories.map(sub => {
+                  const subcategory = availableFilters.subcategories.find(s => s.slug === sub);
+                  return (
+                    <span
+                      key={sub}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-primary/10 text-primary rounded-full text-sm"
+                    >
+                      {subcategory?.name || sub}
+                      <button
+                        onClick={() => handleFilterChange('subcategories', filters.subcategories.filter(s => s !== sub))}
                         className="hover:bg-primary/20 rounded-full p-0.5"
                       >
                         <X size={14} />
@@ -558,7 +580,7 @@ const ProductsPage = () => {
                     <img
                       src={product.imageUrl || 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?q=80&w=500&auto=format&fit=crop'}
                       alt={product.name}
-                      className="w-32 h-40 object-cover rounded-lg flex-shrink-0"
+                      className="w-full sm:w-48 h-56 object-cover rounded-lg flex-shrink-0"
                     />
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold text-gray-900 mb-1 truncate">{product.name}</h3>

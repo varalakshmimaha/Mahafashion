@@ -8,7 +8,7 @@ const ResetPasswordPage = () => {
   const [searchParams] = useSearchParams();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [email, setEmail] = useState(searchParams.get('email') || '');
+  const [email, _setEmail] = useState(searchParams.get('email') || '');
   const [token] = useState(searchParams.get('token') || '');
   const [isLoading, setIsLoading] = useState(false);
   const [isReset, setIsReset] = useState(false);

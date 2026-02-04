@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use App\Models\Product;
 use App\Models\Category;
+use App\Models\ProductImage;
 
 class ProductSeeder extends Seeder
 {
@@ -31,8 +32,7 @@ class ProductSeeder extends Seeder
                 'color' => 'Maroon',
                 'occasion' => 'Wedding',
                 'work_type' => 'Zari',
-                'image_url' => '/sarees/saree1.jpg',
-                'image_urls' => '["/sarees/saree1_1.jpg", "/sarees/saree1_2.jpg", "/sarees/saree1_3.jpg"]',
+                'image_urls' => ['/sarees/saree1_1.jpg', '/sarees/saree1_2.jpg', '/sarees/saree1_3.jpg'],
                 'care_instructions' => 'Dry clean only.',
                 'blouse_included' => true,
                 'drape_length' => 5.5,
@@ -51,8 +51,7 @@ class ProductSeeder extends Seeder
                 'color' => 'Gold',
                 'occasion' => 'Festive',
                 'work_type' => 'Embroidery',
-                'image_url' => '/sarees/saree2.jpg',
-                'image_urls' => '["/sarees/saree2_1.jpg", "/sarees/saree2_2.jpg", "/sarees/saree2_3.jpg"]',
+                'image_urls' => ['/sarees/saree2_1.jpg', '/sarees/saree2_2.jpg', '/sarees/saree2_3.jpg'],
                 'care_instructions' => 'Dry clean only.',
                 'blouse_included' => true,
                 'drape_length' => 5.5,
@@ -71,8 +70,7 @@ class ProductSeeder extends Seeder
                 'color' => 'Navy Blue',
                 'occasion' => 'Casual',
                 'work_type' => 'Printed',
-                'image_url' => '/sarees/saree3.jpg',
-                'image_urls' => '["/sarees/saree3_1.jpg", "/sarees/saree3_2.jpg", "/sarees/saree3_3.jpg"]',
+                'image_urls' => ['/sarees/saree3_1.jpg', '/sarees/saree3_2.jpg', '/sarees/saree3_3.jpg'],
                 'care_instructions' => 'Hand wash separately.',
                 'blouse_included' => true,
                 'drape_length' => 5.5,
@@ -91,8 +89,7 @@ class ProductSeeder extends Seeder
                 'color' => 'Cream',
                 'occasion' => 'Daily Wear',
                 'work_type' => 'Plain',
-                'image_url' => '/sarees/saree4.jpg',
-                'image_urls' => '["/sarees/saree4_1.jpg", "/sarees/saree4_2.jpg", "/sarees/saree4_3.jpg"]',
+                'image_urls' => ['/sarees/saree4_1.jpg', '/sarees/saree4_2.jpg', '/sarees/saree4_3.jpg'],
                 'care_instructions' => 'Machine wash.',
                 'blouse_included' => false,
                 'drape_length' => 6.0,
@@ -115,19 +112,28 @@ class ProductSeeder extends Seeder
                 'color' => $productData['color'],
                 'occasion' => $productData['occasion'],
                 'work_type' => $productData['work_type'],
-                'image_url' => $productData['image_url'],
-                'image_urls' => json_decode($productData['image_urls'], true),
                 'care_instructions' => $productData['care_instructions'],
                 'blouse_included' => $productData['blouse_included'],
                 'drape_length' => $productData['drape_length'],
                 'rating' => $productData['rating'],
                 'review_count' => $productData['review_count'],
                 'stock_quantity' => $productData['stock_quantity'],
-                'status' => $productData['status'] ?? 'active',
+                'status' => $productData['is_active'] ? 'active' : 'inactive',
+                'category_id' => $productData['category_id'],
             ];
 
             if (!Product::where('sku', $payload['sku'])->exists()) {
                 $created = Product::create($payload);
+
+                // Add product images to the product_images table
+                foreach ($productData['image_urls'] as $index => $imageUrl) {
+                    ProductImage::create([
+                        'product_id' => $created->id,
+                        'image_url' => $imageUrl,
+                        'is_default' => $index === 0, // First image is default
+                        'sort_order' => $index,
+                    ]);
+                }
 
                 // attach first subcategory for the corresponding category if exists
                 $categorySlug = null;

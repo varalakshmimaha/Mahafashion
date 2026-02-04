@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { User, LogIn, LogOut, Package, MapPin, Key, ChevronDown, UserCircle, MessageSquare, UserPlus } from 'lucide-react';
+import { User, LogIn, LogOut, Package, MapPin, ChevronDown, UserCircle, MessageSquare, UserPlus, Settings, Image, Palette, CreditCard, LayoutDashboard } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 const ProfileDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  
+
   const { isAuthenticated, user, logout } = useAuth();
 
   // Close dropdown when clicking outside
@@ -51,9 +51,9 @@ const ProfileDropdown = () => {
         aria-haspopup="true"
       >
         <User size={24} />
-        <ChevronDown 
-          size={14} 
-          className={`transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} 
+        <ChevronDown
+          size={14}
+          className={`transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}
         />
       </button>
 
@@ -66,69 +66,124 @@ const ProfileDropdown = () => {
                 <div className="px-5 py-4 bg-maroon-50/50 border-b border-maroon-50 group">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-maroon-900 text-white rounded-full flex items-center justify-center font-bold text-lg">
-                        {user?.name?.charAt(0).toUpperCase() || 'U'}
+                      {user?.name?.charAt(0).toUpperCase() || 'U'}
                     </div>
                     <div className="overflow-hidden">
-                        <p className="text-sm font-bold text-maroon-950 truncate">{user?.name || 'User'}</p>
-                        <p className="text-xs text-maroon-600/70 truncate">{user?.email}</p>
+                      <p className="text-sm font-bold text-maroon-950 truncate">{user?.name || 'User'}</p>
+                      <p className="text-xs text-maroon-600/70 truncate">{user?.email}</p>
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Menu Items */}
                 <div className="p-2 space-y-0.5">
-                    <Link 
-                    to="/profile" 
+                  <Link
+                    to="/profile"
                     className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-700 hover:text-maroon-900 hover:bg-maroon-50 rounded-xl transition-all"
                     onClick={() => setIsOpen(false)}
-                    >
-                    <UserCircle size={18} className="text-gray-400" />
-                    Profile
-                    </Link>
-                    
-                    <Link 
-                    to="/orders" 
-                    className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-700 hover:text-maroon-900 hover:bg-maroon-50 rounded-xl transition-all"
-                    onClick={() => setIsOpen(false)}
-                    >
-                    <Package size={18} className="text-gray-400" />
-                    My Orders
-                    </Link>
-                    
-                    <Link 
-                    to="/addresses" 
-                    className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-700 hover:text-maroon-900 hover:bg-maroon-50 rounded-xl transition-all"
-                    onClick={() => setIsOpen(false)}
-                    >
-                    <MapPin size={18} className="text-gray-400" />
-                    Addresses
-                    </Link>
-                    
-                    <Link 
-                    to="/queries" 
-                    className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-700 hover:text-maroon-900 hover:bg-maroon-50 rounded-xl transition-all"
-                    onClick={() => setIsOpen(false)}
-                    >
-                    <MessageSquare size={18} className="text-gray-400" />
-                    My Queries
-                    </Link>
-                </div>
-                
-                <div className="p-2 border-t border-gray-50 mt-1">
-                    <button
+                  >
+                    <LayoutDashboard size={18} className="text-gray-400" />
+                    Dashboard
+                  </Link>
+
+                  <button
                     onClick={handleLogout}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-red-600 hover:bg-red-50 rounded-xl transition-all"
-                    >
-                    <LogOut size={18} />
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-700 hover:text-maroon-900 hover:bg-maroon-50 rounded-xl transition-all text-left"
+                  >
+                    <LogOut size={18} className="text-gray-400" />
                     Logout
-                    </button>
+                  </button>
                 </div>
+
+                {/* Admin Menu - Only show for admin users */}
+                {user?.role === 'admin' && (
+                  <>
+                    <div className="px-4 py-2 border-t border-gray-100">
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Admin Panel</p>
+                    </div>
+                    <div className="p-2 space-y-0.5">
+                      <Link
+                        to="/admin/settings"
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-700 hover:text-maroon-900 hover:bg-maroon-50 rounded-xl transition-all"
+                        onClick={() => setIsOpen(false)}
+                      >
+                        <Settings size={18} className="text-gray-400" />
+                        Website Settings
+                      </Link>
+                      <Link
+                        to="/admin/products"
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-700 hover:text-maroon-900 hover:bg-maroon-50 rounded-xl transition-all"
+                        onClick={() => setIsOpen(false)}
+                      >
+                        <LayoutDashboard size={18} className="text-gray-400" />
+                        Manage Products
+                      </Link>
+                      <Link
+                        to="/admin/orders"
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-700 hover:text-maroon-900 hover:bg-maroon-50 rounded-xl transition-all"
+                        onClick={() => setIsOpen(false)}
+                      >
+                        <Package size={18} className="text-gray-400" />
+                        Manage Orders
+                      </Link>
+                      <Link
+                        to="/admin/customers"
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-700 hover:text-maroon-900 hover:bg-maroon-50 rounded-xl transition-all"
+                        onClick={() => setIsOpen(false)}
+                      >
+                        <User size={18} className="text-gray-400" />
+                        Manage Customers
+                      </Link>
+                      <Link
+                        to="/admin/static-pages"
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-700 hover:text-maroon-900 hover:bg-maroon-50 rounded-xl transition-all"
+                        onClick={() => setIsOpen(false)}
+                      >
+                        <Settings size={18} className="text-gray-400" />
+                        Static Pages
+                      </Link>
+                      <Link
+                        to="/admin/banners"
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-700 hover:text-maroon-900 hover:bg-maroon-50 rounded-xl transition-all"
+                        onClick={() => setIsOpen(false)}
+                      >
+                        <Image size={18} className="text-gray-400" />
+                        Banners
+                      </Link>
+                      <Link
+                        to="/admin/themes"
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-700 hover:text-maroon-900 hover:bg-maroon-50 rounded-xl transition-all"
+                        onClick={() => setIsOpen(false)}
+                      >
+                        <Palette size={18} className="text-gray-400" />
+                        Themes
+                      </Link>
+                      <Link
+                        to="/admin/payment-settings"
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-700 hover:text-maroon-900 hover:bg-maroon-50 rounded-xl transition-all"
+                        onClick={() => setIsOpen(false)}
+                      >
+                        <CreditCard size={18} className="text-gray-400" />
+                        Payment Settings
+                      </Link>
+                      <Link
+                        to="/admin/payment-gateways"
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-700 hover:text-maroon-900 hover:bg-maroon-50 rounded-xl transition-all"
+                        onClick={() => setIsOpen(false)}
+                      >
+                        <CreditCard size={18} className="text-gray-400" />
+                        Payment Gateways
+                      </Link>
+                    </div>                  </>
+                )}
+
+
               </>
             ) : (
               <div className="p-4 space-y-3">
                 <div className="flex items-center justify-center gap-3">
-                  <Link 
-                    to="/login" 
+                  <Link
+                    to="/login"
                     className="flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-primary to-secondary text-white rounded-xl font-bold hover:opacity-90 transition-all shadow-md"
                     onClick={() => setIsOpen(false)}
                   >
@@ -136,8 +191,8 @@ const ProfileDropdown = () => {
                     Login
                   </Link>
                   <span className="text-gray-400">|</span>
-                  <Link 
-                    to="/register" 
+                  <Link
+                    to="/register"
                     className="flex items-center justify-center gap-2 px-5 py-2.5 border-2 border-primary text-primary rounded-xl font-bold hover:bg-primary hover:text-white transition-all"
                     onClick={() => setIsOpen(false)}
                   >

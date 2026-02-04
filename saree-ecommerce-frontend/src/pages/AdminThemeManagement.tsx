@@ -23,6 +23,12 @@ interface Theme {
   success_color: string;
   warning_color: string;
   danger_color: string;
+  button_color: string;
+  button_hover_color: string;
+  button_text_color: string;
+  border_radius: string;
+  button_font_size: string;
+  button_font_weight: string;
   is_active: boolean;
   created_at?: string;
 }
@@ -42,6 +48,12 @@ const AdminThemeManagement: React.FC = () => {
     success_color: '#10b981',
     warning_color: '#f59e0b',
     danger_color: '#ef4444',
+    button_color: '#800020',
+    button_hover_color: '#4338ca',
+    button_text_color: '#ffffff',
+    border_radius: '0.375rem',
+    button_font_size: '1rem',
+    button_font_weight: '600',
   });
 
   useEffect(() => {
@@ -72,7 +84,7 @@ const AdminThemeManagement: React.FC = () => {
         await themeAPI.create(formData);
         addNotification('Theme created successfully', 'success');
       }
-      
+
       setShowModal(false);
       resetForm();
       loadThemes();
@@ -92,6 +104,12 @@ const AdminThemeManagement: React.FC = () => {
       success_color: theme.success_color,
       warning_color: theme.warning_color,
       danger_color: theme.danger_color,
+      button_color: theme.button_color || theme.primary_color,
+      button_hover_color: theme.button_hover_color || '#4338ca',
+      button_text_color: theme.button_text_color || '#ffffff',
+      border_radius: theme.border_radius || '0.375rem',
+      button_font_size: theme.button_font_size || '1rem',
+      button_font_weight: theme.button_font_weight || '600',
     });
     setShowModal(true);
   };
@@ -101,7 +119,7 @@ const AdminThemeManagement: React.FC = () => {
       await themeAPI.activate(id);
       addNotification('Theme activated successfully', 'success');
       loadThemes();
-      
+
       // Apply theme to CSS variables
       const theme = themes.find(t => t.id === id);
       if (theme) {
@@ -145,6 +163,12 @@ const AdminThemeManagement: React.FC = () => {
       success_color: '#10b981',
       warning_color: '#f59e0b',
       danger_color: '#ef4444',
+      button_color: '#800020',
+      button_hover_color: '#4338ca',
+      button_text_color: '#ffffff',
+      border_radius: '0.375rem',
+      button_font_size: '1rem',
+      button_font_weight: '600',
     });
     setEditingTheme(null);
   };
@@ -376,7 +400,7 @@ const AdminThemeManagement: React.FC = () => {
             </div>
 
             {/* Modal Body */}
-            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            <form onSubmit={handleSubmit} className="p-6 space-y-8">
               {/* Theme Name */}
               <div>
                 <label className="block text-sm font-semibold text-gray-900 mb-3">
@@ -392,38 +416,150 @@ const AdminThemeManagement: React.FC = () => {
                 />
               </div>
 
-              {/* Color Inputs Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {[
-                  { key: 'primary_color', label: 'Primary Color' },
-                  { key: 'secondary_color', label: 'Secondary Color' },
-                  { key: 'accent_color', label: 'Accent Color' },
-                  { key: 'success_color', label: 'Success Color' },
-                  { key: 'warning_color', label: 'Warning Color' },
-                  { key: 'danger_color', label: 'Danger Color' },
-                ].map((field) => (
-                  <div key={field.key}>
-                    <label className="block text-sm font-semibold text-gray-900 mb-3">
-                      {field.label}
-                    </label>
+              {/* Main Colors Section */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-bold text-gray-800 pb-2 border-b">Global Colors</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {[
+                    { key: 'primary_color', label: 'Primary Color' },
+                    { key: 'secondary_color', label: 'Secondary Color' },
+                    { key: 'accent_color', label: 'Accent Color' },
+                    { key: 'success_color', label: 'Success Color' },
+                    { key: 'warning_color', label: 'Warning Color' },
+                    { key: 'danger_color', label: 'Danger Color' },
+                  ].map((field) => (
+                    <div key={field.key}>
+                      <label className="block text-sm font-semibold text-gray-900 mb-3">
+                        {field.label}
+                      </label>
+                      <div className="flex gap-3">
+                        <input
+                          type="color"
+                          value={(formData as any)[field.key]}
+                          onChange={(e) => setFormData({ ...formData, [field.key]: e.target.value })}
+                          className="w-14 h-12 rounded-lg border border-gray-300 cursor-pointer hover:border-gray-400 transition-colors"
+                        />
+                        <input
+                          type="text"
+                          value={(formData as any)[field.key]}
+                          onChange={(e) => setFormData({ ...formData, [field.key]: e.target.value })}
+                          className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all font-mono text-sm"
+                          pattern="^#[0-9A-Fa-f]{6}$"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Button Styling Section */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-bold text-gray-800 pb-2 border-b">Button Styling</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Button Color */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-3">Button Color</label>
                     <div className="flex gap-3">
                       <input
                         type="color"
-                        value={formData[field.key as keyof typeof formData]}
-                        onChange={(e) => setFormData({ ...formData, [field.key]: e.target.value })}
-                        className="w-14 h-12 rounded-lg border border-gray-300 cursor-pointer hover:border-gray-400 transition-colors"
+                        value={formData.button_color}
+                        onChange={(e) => setFormData({ ...formData, button_color: e.target.value })}
+                        className="w-14 h-12 rounded-lg border border-gray-300 cursor-pointer"
                       />
                       <input
                         type="text"
-                        value={formData[field.key as keyof typeof formData]}
-                        onChange={(e) => setFormData({ ...formData, [field.key]: e.target.value })}
-                        className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all font-mono text-sm"
-                        placeholder="#000000"
-                        pattern="^#[0-9A-Fa-f]{6}$"
+                        value={formData.button_color}
+                        onChange={(e) => setFormData({ ...formData, button_color: e.target.value })}
+                        className="flex-1 px-4 py-3 border border-gray-300 rounded-lg font-mono text-sm"
                       />
                     </div>
                   </div>
-                ))}
+
+                  {/* Button Hover Color */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-3">Hover Color</label>
+                    <div className="flex gap-3">
+                      <input
+                        type="color"
+                        value={formData.button_hover_color}
+                        onChange={(e) => setFormData({ ...formData, button_hover_color: e.target.value })}
+                        className="w-14 h-12 rounded-lg border border-gray-300 cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={formData.button_hover_color}
+                        onChange={(e) => setFormData({ ...formData, button_hover_color: e.target.value })}
+                        className="flex-1 px-4 py-3 border border-gray-300 rounded-lg font-mono text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Button Text Color */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-3">Text Color</label>
+                    <div className="flex gap-3">
+                      <input
+                        type="color"
+                        value={formData.button_text_color}
+                        onChange={(e) => setFormData({ ...formData, button_text_color: e.target.value })}
+                        className="w-14 h-12 rounded-lg border border-gray-300 cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={formData.button_text_color}
+                        onChange={(e) => setFormData({ ...formData, button_text_color: e.target.value })}
+                        className="flex-1 px-4 py-3 border border-gray-300 rounded-lg font-mono text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Border Radius */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-3">Border Radius</label>
+                    <select
+                      value={formData.border_radius}
+                      onChange={(e) => setFormData({ ...formData, border_radius: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                    >
+                      <option value="0px">None (0px)</option>
+                      <option value="0.25rem">Small (4px)</option>
+                      <option value="0.375rem">Medium (6px)</option>
+                      <option value="0.5rem">Large (8px)</option>
+                      <option value="0.75rem">XL (12px)</option>
+                      <option value="9999px">Pill (Full)</option>
+                    </select>
+                  </div>
+
+                  {/* Font Size */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-3">Font Size</label>
+                    <select
+                      value={formData.button_font_size}
+                      onChange={(e) => setFormData({ ...formData, button_font_size: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                    >
+                      <option value="0.875rem">Small</option>
+                      <option value="1rem">Medium</option>
+                      <option value="1.125rem">Large</option>
+                      <option value="1.25rem">Extra Large</option>
+                    </select>
+                  </div>
+
+                  {/* Font Weight */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-3">Font Weight</label>
+                    <select
+                      value={formData.button_font_weight}
+                      onChange={(e) => setFormData({ ...formData, button_font_weight: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                    >
+                      <option value="400">Regular (400)</option>
+                      <option value="500">Medium (500)</option>
+                      <option value="600">Semi Bold (600)</option>
+                      <option value="700">Bold (700)</option>
+                    </select>
+                  </div>
+                </div>
               </div>
 
               {/* Modal Footer */}

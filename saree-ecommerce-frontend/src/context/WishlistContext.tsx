@@ -10,6 +10,7 @@ interface WishlistContextType {
   removeFromWishlist: (productId: string) => Promise<string>;
   toggleWishlist: (product: SareeProduct) => Promise<{ action: string; message: string }>;
   isProductInWishlist: (productId: string) => boolean;
+  isInWishlist: (productId: string) => boolean;
   loadWishlistItems: () => void;
 }
 
@@ -136,6 +137,9 @@ export const WishlistProvider: React.FC<WishlistProviderProps> = ({ children }) 
     return wishlistItems.some(item => item.id?.toString() === productId?.toString());
   };
 
+  // Alias for isProductInWishlist for compatibility
+  const isInWishlist = isProductInWishlist;
+
   return (
     <WishlistContext.Provider
       value={{
@@ -145,6 +149,7 @@ export const WishlistProvider: React.FC<WishlistProviderProps> = ({ children }) 
         removeFromWishlist,
         toggleWishlist,
         isProductInWishlist,
+        isInWishlist,
         loadWishlistItems,
       }}
     >

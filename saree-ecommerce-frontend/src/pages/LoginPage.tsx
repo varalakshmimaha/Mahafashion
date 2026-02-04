@@ -74,7 +74,7 @@ const LoginPage = () => {
                   <label htmlFor="password" className="block text-sm font-semibold text-gray-700">
                     Password
                   </label>
-                  <Link to="/forgot-password" size="sm" className="text-sm font-bold text-maroon-600 hover:text-maroon-700 transition-colors">
+                  <Link to="/forgot-password" className="text-sm font-bold text-maroon-600 hover:text-maroon-700 transition-colors">
                     Forgot Password?
                   </Link>
                 </div>

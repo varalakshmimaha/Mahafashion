@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { FiSearch, FiPackage, FiTruck, FiCheckCircle } from 'react-icons/fi';
+import { orderAPI } from '../services/api';
+import { useNotification } from '../context/NotificationContext';
 
 interface OrderStatus {
   id: string;
@@ -7,11 +9,13 @@ interface OrderStatus {
   status: string;
   items: number;
   total: number;
-  created_at: string;
+  created_at?: string | null;
+  status_history?: any;
   tracking_number?: string;
 }
 
 const TrackOrderPage = () => {
+  const { addNotification } = useNotification();
   const [orderNumber, setOrderNumber] = useState('');
   const [orderStatus, setOrderStatus] = useState<OrderStatus | null>(null);
   const [loading, setLoading] = useState(false);
@@ -27,42 +31,111 @@ const TrackOrderPage = () => {
 
     setLoading(true);
     setError('');
+    setOrderStatus(null);
 
-    try {
-      // Simulated order tracking - in production, this would call the API
-      // const response = await orderAPI.getOrderByNumber(orderNumber);
-      
-      // For demo purposes, showing a mock response
-      setTimeout(() => {
-        if (orderNumber.startsWith('ORD-')) {
-          setOrderStatus({
-            id: '1',
-            order_number: orderNumber,
-            status: 'shipped',
-            items: 2,
-            total: 12998,
-            created_at: '2025-12-20T10:00:00Z',
-            tracking_number: 'TRK123456789'
-          });
-        } else {
-          setError('Order not found. Please check your order number and try again.');
-          setOrderStatus(null);
+      try {
+      // Try fetching by numeric id first (if user entered numeric id)
+      let response: any = null;
+
+      try {
+        response = await orderAPI.getOrderById(orderNumber);
+      } catch (firstErr) {
+        // fallback: try public track by order number
+        response = await orderAPI.trackByNumber(orderNumber);
+      }
+
+      // Normalize response shape (some endpoints return { data: order })
+      const order = response?.data || response;
+
+      // Derive placed date from backend `status_history` when available,
+      // otherwise try several common fallback fields returned by different endpoints.
+      let placedAt: string | null = null;
+      const statusHistory = order?.status_history;
+      const tryStatusEntry = (entry: any) => {
+        if (!entry) return null;
+        const st = (entry?.status || entry?.name || '').toString().toLowerCase();
+        if (['placed', 'order placed', 'pending', 'created'].includes(st)) {
+          return entry.timestamp || entry.created_at || entry.date || entry.at || null;
         }
-        setLoading(false);
-      }, 1000);
-    } catch (err) {
-      setError('Unable to track order. Please try again later.');
+        return null;
+      };
+
+      if (Array.isArray(statusHistory)) {
+        for (const s of statusHistory) {
+          const v = tryStatusEntry(s);
+          if (v) { placedAt = v; break; }
+        }
+      } else if (statusHistory && typeof statusHistory === 'object') {
+        // status_history might be an object keyed by status name
+        for (const v of Object.values(statusHistory)) {
+          const found = tryStatusEntry(v as any);
+          if (found) { placedAt = found; break; }
+        }
+      }
+
+      // Other common fallback fields some endpoints use
+      const fallbackFields = ['placed_at','placedAt','placed_on','placedOn','order_date','orderDate','created_at','createdAt','created'];
+      if (!placedAt) {
+        for (const key of fallbackFields) {
+          if (order && (order[key] !== undefined && order[key] !== null)) {
+            placedAt = order[key];
+            break;
+          }
+        }
+      }
+
+      // Final normalize: ensure string or null
+      if (placedAt && typeof placedAt !== 'string') placedAt = String(placedAt);
+      if (!placedAt) placedAt = null;
+
+      const itemsCount = Array.isArray(order?.order_items)
+        ? order.order_items.length
+        : Array.isArray(order?.items)
+          ? order.items.length
+          : (typeof order?.items === 'number' ? order.items : 0);
+
+      setOrderStatus({
+        id: order?.id,
+        order_number: order?.order_number,
+        status: order?.status || '',
+        items: itemsCount,
+        total: order?.total ?? 0,
+        created_at: placedAt,
+        status_history: order?.status_history,
+        tracking_number: order?.tracking_number ?? null
+      });
+    } catch (err: any) {
+      console.error('Error tracking order:', err);
+      setError(err.message || 'Order not found. Please check your order number and try again.');
+      addNotification(err.message || 'Unable to track order. Please try again later.', 'error');
+    } finally {
       setLoading(false);
     }
   };
 
-  const getStatusStep = (status: string) => {
-    switch (status) {
+  const getStatusStep = (status?: string) => {
+    const s = (status || '').toLowerCase();
+    switch (s) {
       case 'pending': return 1;
+      case 'confirmed': return 1;
       case 'processing': return 2;
       case 'shipped': return 3;
       case 'delivered': return 4;
+      case 'cancelled': return 5;
       default: return 1;
+    }
+  };
+  
+  const getStatusLabel = (status?: string) => {
+    const s = (status || '').toLowerCase();
+    switch (s) {
+      case 'pending': return 'Pending';
+      case 'confirmed': return 'Confirmed';
+      case 'processing': return 'Processing';
+      case 'shipped': return 'Shipped';
+      case 'delivered': return 'Delivered';
+      case 'cancelled': return 'Cancelled';
+      default: return status || '';
     }
   };
 
@@ -88,7 +161,7 @@ const TrackOrderPage = () => {
           <button
             type="submit"
             disabled={loading}
-            className="px-6 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors duration-300 flex items-center gap-2 disabled:bg-gray-400"
+            className="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors duration-300 flex items-center gap-2 disabled:bg-gray-400"
           >
             <FiSearch />
             {loading ? 'Tracking...' : 'Track'}
@@ -105,11 +178,11 @@ const TrackOrderPage = () => {
           <div className="mb-8">
             <h2 className="text-xl font-semibold mb-2">Order #{orderStatus.order_number}</h2>
             <p className="text-gray-600">
-              Placed on {new Date(orderStatus.created_at).toLocaleDateString('en-US', {
+              Placed on {orderStatus.created_at ? (isNaN(new Date(orderStatus.created_at).getTime()) ? 'N/A' : new Date(orderStatus.created_at).toLocaleDateString('en-US', {
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric'
-              })}
+              })) : 'N/A'}
             </p>
             {orderStatus.tracking_number && (
               <p className="text-gray-600 mt-1">
@@ -124,7 +197,7 @@ const TrackOrderPage = () => {
               {/* Order Placed */}
               <div className="flex flex-col items-center">
                 <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                  getStatusStep(orderStatus.status) >= 1 ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500'
+                  getStatusStep(orderStatus.status) >= 1 && orderStatus.status !== 'cancelled' ? 'bg-green-500 text-white' : orderStatus.status === 'cancelled' ? 'bg-red-500 text-white' : 'bg-gray-200 text-gray-500'
                 }`}>
                   <FiCheckCircle size={24} />
                 </div>
@@ -133,13 +206,13 @@ const TrackOrderPage = () => {
 
               {/* Processing */}
               <div className="flex-1 h-1 mx-4 bg-gray-200">
-                <div className={`h-full ${getStatusStep(orderStatus.status) >= 2 ? 'bg-green-500' : ''}`} 
-                     style={{ width: getStatusStep(orderStatus.status) >= 2 ? '100%' : '0%' }}></div>
+                <div className={`h-full ${(getStatusStep(orderStatus.status) >= 2 && orderStatus.status !== 'cancelled') ? 'bg-green-500' : orderStatus.status === 'cancelled' ? 'bg-red-500' : ''}`} 
+                     style={{ width: (getStatusStep(orderStatus.status) >= 2 && orderStatus.status !== 'cancelled') ? '100%' : orderStatus.status === 'cancelled' ? '50%' : '0%' }}></div>
               </div>
 
               <div className="flex flex-col items-center">
                 <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                  getStatusStep(orderStatus.status) >= 2 ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500'
+                  getStatusStep(orderStatus.status) >= 2 && orderStatus.status !== 'cancelled' ? 'bg-green-500 text-white' : orderStatus.status === 'cancelled' ? 'bg-red-500 text-white' : 'bg-gray-200 text-gray-500'
                 }`}>
                   <FiPackage size={24} />
                 </div>
@@ -148,13 +221,13 @@ const TrackOrderPage = () => {
 
               {/* Shipped */}
               <div className="flex-1 h-1 mx-4 bg-gray-200">
-                <div className={`h-full ${getStatusStep(orderStatus.status) >= 3 ? 'bg-green-500' : ''}`}
-                     style={{ width: getStatusStep(orderStatus.status) >= 3 ? '100%' : '0%' }}></div>
+                <div className={`h-full ${(getStatusStep(orderStatus.status) >= 3 && orderStatus.status !== 'cancelled') ? 'bg-green-500' : orderStatus.status === 'cancelled' ? 'bg-red-500' : ''}`}
+                     style={{ width: (getStatusStep(orderStatus.status) >= 3 && orderStatus.status !== 'cancelled') ? '100%' : orderStatus.status === 'cancelled' ? '100%' : '0%' }}></div>
               </div>
 
               <div className="flex flex-col items-center">
                 <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                  getStatusStep(orderStatus.status) >= 3 ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500'
+                  getStatusStep(orderStatus.status) >= 3 && orderStatus.status !== 'cancelled' ? 'bg-green-500 text-white' : orderStatus.status === 'cancelled' ? 'bg-red-500 text-white' : 'bg-gray-200 text-gray-500'
                 }`}>
                   <FiTruck size={24} />
                 </div>
@@ -169,11 +242,11 @@ const TrackOrderPage = () => {
 
               <div className="flex flex-col items-center">
                 <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                  getStatusStep(orderStatus.status) >= 4 ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500'
+                  getStatusStep(orderStatus.status) >= 4 ? 'bg-green-500 text-white' : getStatusStep(orderStatus.status) >= 5 ? 'bg-red-500 text-white' : 'bg-gray-200 text-gray-500'
                 }`}>
                   <FiCheckCircle size={24} />
                 </div>
-                <span className="mt-2 text-sm font-medium">Delivered</span>
+                <span className="mt-2 text-sm font-medium">{getStatusStep(orderStatus.status) >= 5 ? 'Cancelled' : 'Delivered'}</span>
               </div>
             </div>
           </div>
@@ -184,6 +257,12 @@ const TrackOrderPage = () => {
             <div className="flex justify-between text-gray-600">
               <span>Items in order:</span>
               <span>{orderStatus.items}</span>
+            </div>
+            <div className="flex justify-between text-gray-600 mt-2">
+              <span>Status:</span>
+              <span className={`font-semibold ${orderStatus.status === 'cancelled' ? 'text-red-600' : 'text-green-600'}`}>
+                {getStatusLabel(orderStatus.status)}
+              </span>
             </div>
             <div className="flex justify-between font-semibold text-lg mt-2">
               <span>Total:</span>

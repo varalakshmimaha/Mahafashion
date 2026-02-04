@@ -19,9 +19,15 @@ class WishlistController extends Controller
      */
     public function index()
     {
-        $wishlistItems = Wishlist::with('product')->where('user_id', Auth::id())->get();
-        
-        return response()->json($wishlistItems);
+        try {
+            $wishlistItems = Wishlist::with('product')->where('user_id', Auth::id())->get();
+            
+            return response()->json($wishlistItems);
+        } catch (\Exception $e) {
+            \Log::error('Wishlist index error: ' . $e->getMessage());
+            // Return empty array instead of failing
+            return response()->json([]);
+        }
     }
 
     /**

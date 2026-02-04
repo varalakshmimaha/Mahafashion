@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage;
 
 class ProductResource extends JsonResource
 {
@@ -14,6 +15,21 @@ class ProductResource extends JsonResource
      */
     public function toArray($request)
     {
+        // Eager load images if not already loaded to prevent N+1 issues
+        if (!$this->relationLoaded('images')) {
+            $this->load('images');
+        }
+
+        $allImages = $this->images->map(function ($image) {
+            return asset('storage/' . $image->image_url);
+        })->toArray();
+
+        // Separate main image and gallery images
+        $mainImageUrl = $this->main_image_url;
+        $galleryImages = collect($allImages)->filter(function ($url) use ($mainImageUrl) {
+            return $url !== $mainImageUrl;
+        })->values()->toArray();
+        
         return [
             'id' => (string) $this->id,
             'name' => $this->name,
@@ -24,8 +40,9 @@ class ProductResource extends JsonResource
             'color' => $this->color,
             'occasion' => $this->occasion,
             'workType' => $this->work_type,
-            'imageUrl' => $this->getImageUrlForFrontend(),
-            'imageUrls' => $this->getImageUrlsForFrontend(),
+            'imageUrl' => $mainImageUrl, // Use the accessor
+            'imageUrls' => $galleryImages, // Use the remaining images as gallery
+            'allImages' => $allImages, // Provide all images if needed
             'careInstructions' => $this->care_instructions,
             'blouseIncluded' => (bool) $this->blouse_included,
             'drapeLength' => (float) $this->drape_length,
@@ -40,6 +57,7 @@ class ProductResource extends JsonResource
             'isEthnicWear' => (bool) $this->is_ethnic_wear,
             'isSuwishCollection' => (bool) $this->is_suwish_collection,
             'categoryId' => (string) $this->category_id,
+            'subcategoryId' => $this->subcategory_id ? (string) $this->subcategory_id : null,
             'createdAt' => $this->created_at,
             'updatedAt' => $this->updated_at,
             'fabricType' => $this->fabric_type,
@@ -48,6 +66,11 @@ class ProductResource extends JsonResource
             'colors' => $this->formatColorsForFrontend(),
             'defaultColor' => $this->color,
             'category' => $this->whenLoaded('category'),
+            'subcategory' => $this->whenLoaded('subcategory'),
+            'images' => ProductImageResource::collection($this->whenLoaded('images')), // Optionally use a dedicated resource for product images
+            'variants' => $this->formatVariantsForFrontend(),
+            'sizes' => $this->sizes, // Standalone sizes (without color variants)
+            'final_price' => (float) $this->final_price,
         ];
     }
     
@@ -70,9 +93,9 @@ class ProductResource extends JsonResource
                     'name' => $color,
                     'hexCode' => $this->getColorHexCode($color),
                     'images' => [
-                        'main' => $this->getImageUrlForFrontend(),
-                        'gallery' => $this->getImageUrlsForFrontend(),
-                        'thumbnails' => $this->getImageUrlsForFrontend(),
+                        'main' => $this->main_image_url,
+                        'gallery' => $this->images->where('color_code', null)->map(fn($image) => asset('storage/' . $image->image_url))->toArray(),
+                        'thumbnails' => $this->images->where('color_code', null)->map(fn($image) => asset('storage/' . $image->image_url))->toArray(),
                     ]
                 ];
             } elseif (is_array($color)) {
@@ -82,9 +105,9 @@ class ProductResource extends JsonResource
                     'name' => $color['name'] ?? 'Unknown',
                     'hexCode' => $color['hexCode'] ?? $this->getColorHexCode($color['name'] ?? ''),
                     'images' => $this->formatColorImagesForFrontend($color['images'] ?? [
-                        'main' => $this->getImageUrlForFrontend(),
-                        'gallery' => $this->getImageUrlsForFrontend(),
-                        'thumbnails' => $this->getImageUrlsForFrontend(),
+                        'main' => $this->main_image_url,
+                        'gallery' => $this->images->where('color_code', $color['id'] ?? null)->map(fn($image) => asset('storage/' . $image->image_url))->toArray(),
+                        'thumbnails' => $this->images->where('color_code', $color['id'] ?? null)->map(fn($image) => asset('storage/' . $image->image_url))->toArray(),
                     ])
                 ];
             }
@@ -103,33 +126,17 @@ class ProductResource extends JsonResource
         
         // Process main image
         if (isset($colorImages['main'])) {
-            if (str_starts_with($colorImages['main'], '/')) {
-                $formattedImages['main'] = asset($colorImages['main']);
-            } else {
-                $formattedImages['main'] = asset('storage/' . $colorImages['main']);
-            }
+            $formattedImages['main'] = $colorImages['main'];
         }
         
         // Process gallery images
         if (isset($colorImages['gallery']) && is_array($colorImages['gallery'])) {
-            foreach ($colorImages['gallery'] as $galleryImage) {
-                if (str_starts_with($galleryImage, '/')) {
-                    $formattedImages['gallery'][] = asset($galleryImage);
-                } else {
-                    $formattedImages['gallery'][] = asset('storage/' . $galleryImage);
-                }
-            }
+            $formattedImages['gallery'] = $colorImages['gallery'];
         }
         
         // Process thumbnail images
         if (isset($colorImages['thumbnails']) && is_array($colorImages['thumbnails'])) {
-            foreach ($colorImages['thumbnails'] as $thumbnailImage) {
-                if (str_starts_with($thumbnailImage, '/')) {
-                    $formattedImages['thumbnails'][] = asset($thumbnailImage);
-                } else {
-                    $formattedImages['thumbnails'][] = asset('storage/' . $thumbnailImage);
-                }
-            }
+            $formattedImages['thumbnails'] = $colorImages['thumbnails'];
         }
         
         return $formattedImages;
@@ -160,37 +167,36 @@ class ProductResource extends JsonResource
         return $colorMap[$normalizedColor] ?? '#808080'; // Default to gray if not found
     }
     
-    private function getImageUrlForFrontend()
+    /**
+     * Format variants for frontend with images grouped by color
+     */
+    private function formatVariantsForFrontend()
     {
-        if (!$this->image_url) {
-            return null;
-        }
-        
-        // Check if the image path is already an absolute path (starts with /)
-        if (str_starts_with($this->image_url, '/')) {
-            return asset($this->image_url);
-        } else {
-            // It's a storage path, prepend storage/
-            return asset('storage/' . $this->image_url);
-        }
-    }
-    
-    private function getImageUrlsForFrontend()
-    {
-        $imageUrls = $this->image_urls ?? [];
-        
-        if (!is_array($imageUrls)) {
+        if (!$this->relationLoaded('variants')) {
             return [];
         }
-        
-        return array_map(function($url) {
-            // Check if the image path is already an absolute path (starts with /)
-            if (str_starts_with($url, '/')) {
-                return asset($url);
-            } else {
-                // It's a storage path, prepend storage/
-                return asset('storage/' . $url);
-            }
-        }, $imageUrls);
+
+        $variants = $this->variants->map(function ($variant) {
+            // Get images for this specific color
+            $colorImages = $this->images
+                ->where('color_code', $variant->color_code)
+                ->map(fn($image) => asset('storage/' . $image->image_url))
+                ->values()
+                ->toArray();
+
+            return [
+                'id' => $variant->id,
+                'product_id' => $variant->product_id,
+                'color_code' => $variant->color_code,
+                'color_name' => $variant->color_name,
+                'size' => $variant->size,
+                'stock' => (int) $variant->stock,
+                'price' => $variant->price ? (float) $variant->price : null, // Size-specific price override
+                'price_adjustment' => $variant->price_adjustment ? (float) $variant->price_adjustment : 0,
+                'images' => $colorImages, // Images for this color variant
+            ];
+        });
+
+        return $variants;
     }
 }

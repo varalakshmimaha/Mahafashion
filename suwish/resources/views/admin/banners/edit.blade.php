@@ -62,7 +62,7 @@
                 @if($banner->image_path)
                     <div class="mt-2">
                         <p class="text-sm text-gray-600">Current image:</p>
-                        <img src="{{ asset($banner->image_path) }}" alt="{{ $banner->title }}" class="mt-1 h-32 object-contain">
+                        <img src="{{ $banner->image_path }}" alt="{{ $banner->title }}" class="mt-1 h-32 object-contain">
                     </div>
                 @endif
             </div>

@@ -1,9 +1,10 @@
-import React from 'react';
+
 import { Link, useNavigate } from 'react-router-dom';
 import { ShoppingBag, ArrowRight, ArrowLeft, Package } from 'lucide-react';
 import CartItem from '../components/cart/CartItem';
 import CartSummary from '../components/cart/CartSummary';
 import { useCart } from '../context/CartContext';
+import Button from '../components/ui/Button';
 
 const CartPage = () => {
     const { cartItems } = useCart();
@@ -15,31 +16,32 @@ const CartPage = () => {
         <div className="bg-gray-50 min-h-screen pb-24 md:pb-12">
             {/* Header Section */}
             <div className="bg-white border-b border-gray-100 sticky top-0 z-10 md:relative">
-              <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
-                  {/* Breadcrumb - hidden on mobile */}
-                  <div className="hidden sm:flex items-center gap-2 text-sm text-gray-500 mb-4">
-                      <Link to="/" className="hover:text-maroon-700 transition-colors">Home</Link>
-                      <span>/</span>
-                      <span className="text-maroon-900 font-medium">Shopping Bag</span>
-                  </div>
-                  
-                  <div className="flex items-center justify-between gap-4">
-                      <div>
-                          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 flex items-center gap-2">
-                              <ShoppingBag className="text-maroon-600 hidden sm:block" size={28} />
-                              SHOPPING BAG
-                              <span className="text-maroon-600">({totalItems} {totalItems === 1 ? 'item' : 'items'})</span>
-                          </h1>
-                      </div>
-                      <Link 
-                          to="/products" 
-                          className="hidden sm:inline-flex items-center gap-2 text-maroon-600 font-medium hover:text-maroon-700 transition-colors text-sm"
-                      >
-                          <ArrowLeft size={16} />
-                          Continue Shopping
-                      </Link>
-                  </div>
-              </div>
+                <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+                    {/* Breadcrumb - hidden on mobile */}
+                    <div className="hidden sm:flex items-center gap-2 text-sm text-gray-500 mb-4">
+                        <Link to="/" className="hover:text-maroon-700 transition-colors">Home</Link>
+                        <span>/</span>
+                        <span className="text-maroon-900 font-medium">Shopping Bag</span>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-4">
+                        <div>
+                            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 flex items-center gap-2">
+                                <ShoppingBag className="text-maroon-600 hidden sm:block" size={28} />
+                                SHOPPING BAG
+                                <span className="text-maroon-600">({totalItems} {totalItems === 1 ? 'item' : 'items'})</span>
+                            </h1>
+                        </div>
+                        <Button
+                            variant="ghost"
+                            onClick={() => navigate('/products')}
+                            className="hidden sm:inline-flex gap-2 text-sm pl-0 hover:bg-transparent"
+                        >
+                            <ArrowLeft size={16} />
+                            Continue Shopping
+                        </Button>
+                    </div>
+                </div>
             </div>
 
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-10">
@@ -50,16 +52,17 @@ const CartPage = () => {
                         </div>
                         <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3">Your bag is empty</h2>
                         <p className="text-gray-500 mb-8 text-sm sm:text-base">
-                            Looks like you haven't added any sarees yet. 
+                            Looks like you haven't added any sarees yet.
                             Explore our beautiful collections!
                         </p>
-                        <Link 
-                            to="/products" 
-                            className="inline-flex items-center justify-center gap-2 bg-maroon-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-maroon-700 transition-all text-sm sm:text-base"
+                        <Button
+                            variant="primary"
+                            onClick={() => navigate('/products')}
+                            className="gap-2"
                         >
                             Start Shopping
                             <ArrowRight size={18} />
-                        </Link>
+                        </Button>
                     </div>
                 ) : (
                     <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
@@ -74,16 +77,17 @@ const CartPage = () => {
                                     ))}
                                 </div>
                             </div>
-                            
+
                             {/* Continue Shopping - Mobile */}
-                            <Link 
-                                to="/products" 
-                                className="mt-4 flex sm:hidden items-center justify-center gap-2 py-3 text-maroon-600 font-medium text-sm"
+                            <Button
+                                variant="ghost"
+                                onClick={() => navigate('/products')}
+                                className="mt-4 flex sm:hidden w-full justify-center gap-2 py-3 text-sm hover:bg-gray-50"
                             >
                                 <ArrowLeft size={16} />
                                 Continue Shopping
-                            </Link>
-                            
+                            </Button>
+
                             {/* Why Shop With Us - Desktop */}
                             <div className="hidden lg:block mt-6 bg-white rounded-2xl p-6">
                                 <h4 className="font-bold text-gray-900 mb-4">Why Shop With Suwish?</h4>

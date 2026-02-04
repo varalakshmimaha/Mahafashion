@@ -2,20 +2,41 @@
 
 namespace App\Services;
 
-use Razorpay\Api\Api;
-
 class RazorpayService
 {
     protected $api;
     protected $key;
     protected $secret;
+    protected $isAvailable = false;
 
     public function __construct()
     {
-        $this->key = env('RAZORPAY_KEY');
-        $this->secret = env('RAZORPAY_SECRET');
+        // Try to get credentials from database first
+        $gateway = \App\Models\PaymentGateway::where('name', 'razorpay')->first();
         
-        $this->api = new Api($this->key, $this->secret);
+        if ($gateway && $gateway->is_enabled && !empty($gateway->config)) {
+            $this->key = $gateway->config['key'] ?? $gateway->config['key_id'] ?? env('RAZORPAY_KEY');
+            $this->secret = $gateway->config['secret'] ?? $gateway->config['key_secret'] ?? env('RAZORPAY_SECRET');
+        } else {
+            $this->key = env('RAZORPAY_KEY');
+            $this->secret = env('RAZORPAY_SECRET');
+        }
+        
+        // Check if Razorpay SDK is installed
+        if (class_exists('Razorpay\Api\Api')) {
+            if (!empty($this->key) && !empty($this->secret)) {
+                $this->api = new \Razorpay\Api\Api($this->key, $this->secret);
+                $this->isAvailable = true;
+            }
+        }
+    }
+    
+    /**
+     * Check if Razorpay service is available
+     */
+    public function isAvailable(): bool
+    {
+        return $this->isAvailable && !empty($this->key) && !empty($this->secret);
     }
 
     /**
@@ -28,6 +49,10 @@ class RazorpayService
      */
     public function createOrder($amount, $currency = 'INR', $options = [])
     {
+        if (!$this->isAvailable()) {
+            throw new \Exception('Razorpay payment gateway is not configured. Please contact support.');
+        }
+        
         $data = [
             'amount' => $amount * 100, // Convert to paise
             'currency' => $currency,

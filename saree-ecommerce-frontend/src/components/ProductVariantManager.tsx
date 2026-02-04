@@ -6,14 +6,16 @@ interface ProductVariant {
   color_name: string;
   size: string;
   stock: number;
+  price?: number; // New explicit price
   price_adjustment: number;
-  sku: string;
+  sku: string | null;
 }
 
 interface ProductVariantManagerProps {
   productId: number;
   existingVariants?: ProductVariant[];
   onUpdateSuccess?: () => void;
+  onUploadImages?: (colorCode: string) => void;
 }
 
 const COMMON_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'Free Size'];
@@ -39,7 +41,8 @@ const PREDEFINED_COLORS = [
 const ProductVariantManager: React.FC<ProductVariantManagerProps> = ({
   productId,
   existingVariants = [],
-  onUpdateSuccess
+  onUpdateSuccess,
+  onUploadImages
 }) => {
   const [variants, setVariants] = useState<ProductVariant[]>(existingVariants);
   const [newVariant, setNewVariant] = useState<Partial<ProductVariant>>({
@@ -47,6 +50,7 @@ const ProductVariantManager: React.FC<ProductVariantManagerProps> = ({
     color_name: '',
     size: 'M',
     stock: 0,
+    price: 0,
     price_adjustment: 0,
     sku: ''
   });
@@ -74,13 +78,14 @@ const ProductVariantManager: React.FC<ProductVariantManagerProps> = ({
     }
 
     setVariants([...variants, newVariant as ProductVariant]);
-    
+
     // Reset form
     setNewVariant({
       color_code: '#000000',
       color_name: '',
       size: 'M',
       stock: 0,
+      price: 0,
       price_adjustment: 0,
       sku: ''
     });
@@ -103,7 +108,7 @@ const ProductVariantManager: React.FC<ProductVariantManagerProps> = ({
         {
           method: 'DELETE',
           headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`
+            'Authorization': localStorage.getItem('authToken') || ''
           }
         }
       );
@@ -141,7 +146,7 @@ const ProductVariantManager: React.FC<ProductVariantManagerProps> = ({
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${localStorage.getItem('token')}`
+            'Authorization': localStorage.getItem('authToken') || ''
           },
           body: JSON.stringify({ variants })
         }
@@ -154,7 +159,7 @@ const ProductVariantManager: React.FC<ProductVariantManagerProps> = ({
 
       const result = await response.json();
       setVariants(result.variants);
-      
+
       alert('Variants saved successfully!');
       onUpdateSuccess?.();
     } catch (error) {
@@ -173,17 +178,12 @@ const ProductVariantManager: React.FC<ProductVariantManagerProps> = ({
     });
   };
 
-  const getColorName = (colorCode: string): string => {
-    const found = PREDEFINED_COLORS.find(c => c.code.toLowerCase() === colorCode.toLowerCase());
-    return found ? found.name : colorCode;
-  };
-
   return (
     <div className="space-y-6">
       {/* Add New Variant Form */}
       <div className="bg-gray-50 p-6 rounded-lg border">
         <h3 className="text-lg font-semibold mb-4">Add New Variant</h3>
-        
+
         {/* Predefined Colors */}
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -195,11 +195,10 @@ const ProductVariantManager: React.FC<ProductVariantManagerProps> = ({
                 key={color.code}
                 type="button"
                 onClick={() => selectPredefinedColor(color)}
-                className={`flex items-center gap-2 px-3 py-1.5 border rounded-lg hover:shadow transition ${
-                  newVariant.color_code === color.code
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-300'
-                }`}
+                className={`flex items-center gap-2 px-3 py-1.5 border rounded-lg hover:shadow transition ${newVariant.color_code === color.code
+                  ? 'border-blue-500 bg-blue-50'
+                  : 'border-gray-300'
+                  }`}
                 title={color.name}
               >
                 <div
@@ -219,11 +218,13 @@ const ProductVariantManager: React.FC<ProductVariantManagerProps> = ({
               Color Code
             </label>
             <div className="flex gap-2">
+              {/* Native Color Picker for direct selection */}
               <input
                 type="color"
                 value={newVariant.color_code}
                 onChange={(e) => setNewVariant({ ...newVariant, color_code: e.target.value })}
-                className="w-12 h-10 rounded border cursor-pointer"
+                className="w-12 h-10 rounded border cursor-pointer p-1"
+                title="Click to select color"
               />
               <input
                 type="text"
@@ -282,10 +283,26 @@ const ProductVariantManager: React.FC<ProductVariantManagerProps> = ({
             />
           </div>
 
+          {/* Price */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Price (₹)
+            </label>
+            <input
+              type="number"
+              value={newVariant.price}
+              onChange={(e) => setNewVariant({ ...newVariant, price: parseFloat(e.target.value) || 0 })}
+              className="w-full px-3 py-2 border rounded"
+              min="0"
+              step="0.01"
+              placeholder="Optional Override"
+            />
+          </div>
+
           {/* Price Adjustment */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Price Adjustment (₹)
+              Price Adjustment (Old)
             </label>
             <input
               type="number"
@@ -303,7 +320,7 @@ const ProductVariantManager: React.FC<ProductVariantManagerProps> = ({
             </label>
             <input
               type="text"
-              value={newVariant.sku}
+              value={newVariant.sku || ''}
               onChange={(e) => setNewVariant({ ...newVariant, sku: e.target.value })}
               className="w-full px-3 py-2 border rounded"
               placeholder="e.g., SAR-MAR-M-001"
@@ -335,6 +352,7 @@ const ProductVariantManager: React.FC<ProductVariantManagerProps> = ({
                   <th className="border px-4 py-2 text-left">Color</th>
                   <th className="border px-4 py-2 text-left">Size</th>
                   <th className="border px-4 py-2 text-right">Stock</th>
+                  <th className="border px-4 py-2 text-right">Price</th>
                   <th className="border px-4 py-2 text-right">Price Adj.</th>
                   <th className="border px-4 py-2 text-left">SKU</th>
                   <th className="border px-4 py-2 text-center">Actions</th>
@@ -356,7 +374,7 @@ const ProductVariantManager: React.FC<ProductVariantManagerProps> = ({
                             type="text"
                             value={variant.color_name}
                             onChange={(e) => handleUpdateVariant(index, 'color_name', e.target.value)}
-                            className="px-2 py-1 border rounded text-sm"
+                            className="px-2 py-1 border rounded text-sm w-full"
                           />
                         </div>
                       ) : (
@@ -403,6 +421,19 @@ const ProductVariantManager: React.FC<ProductVariantManagerProps> = ({
                       {editingId === variant.id ? (
                         <input
                           type="number"
+                          value={variant.price || 0}
+                          onChange={(e) => handleUpdateVariant(index, 'price', parseFloat(e.target.value) || 0)}
+                          className="w-24 px-2 py-1 border rounded text-sm text-right"
+                          step="0.01"
+                        />
+                      ) : (
+                        variant.price ? `₹${Number(variant.price).toFixed(2)}` : '-'
+                      )}
+                    </td>
+                    <td className="border px-4 py-2 text-right">
+                      {editingId === variant.id ? (
+                        <input
+                          type="number"
                           value={variant.price_adjustment}
                           onChange={(e) => handleUpdateVariant(index, 'price_adjustment', parseFloat(e.target.value) || 0)}
                           className="w-24 px-2 py-1 border rounded text-sm text-right"
@@ -416,7 +447,7 @@ const ProductVariantManager: React.FC<ProductVariantManagerProps> = ({
                       {editingId === variant.id ? (
                         <input
                           type="text"
-                          value={variant.sku}
+                          value={variant.sku || ''}
                           onChange={(e) => handleUpdateVariant(index, 'sku', e.target.value)}
                           className="px-2 py-1 border rounded text-sm"
                         />
@@ -444,6 +475,16 @@ const ProductVariantManager: React.FC<ProductVariantManagerProps> = ({
                           </button>
                         )}
                         <button
+                          onClick={() => onUploadImages?.(variant.color_code)}
+                          className="text-indigo-600 hover:text-indigo-800 text-sm flex items-center gap-1 border border-indigo-200 px-2 py-1 rounded hover:bg-indigo-50"
+                          title="Upload images for this color"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          Images
+                        </button>
+                        <button
                           onClick={() => variant.id ? handleDeleteVariant(variant.id) : handleRemoveVariant(index)}
                           className="text-red-600 hover:text-red-800"
                           title="Delete"
@@ -466,11 +507,10 @@ const ProductVariantManager: React.FC<ProductVariantManagerProps> = ({
           <button
             onClick={handleSaveVariants}
             disabled={saving}
-            className={`px-6 py-2 rounded-lg font-medium text-white ${
-              saving
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-blue-600 hover:bg-blue-700'
-            }`}
+            className={`px-6 py-2 rounded-lg font-medium text-white ${saving
+              ? 'bg-gray-400 cursor-not-allowed'
+              : 'bg-blue-600 hover:bg-blue-700'
+              }`}
           >
             {saving ? 'Saving...' : 'Save All Variants'}
           </button>
@@ -479,5 +519,4 @@ const ProductVariantManager: React.FC<ProductVariantManagerProps> = ({
     </div>
   );
 };
-
 export default ProductVariantManager;

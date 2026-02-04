@@ -50,6 +50,11 @@ class Banner extends Model
         
         // If it starts with /sarees/ or /banners/, it's a public asset (not in storage)
         if (str_starts_with($value, '/sarees/') || str_starts_with($value, '/banners/') || str_starts_with($value, 'sarees/') || str_starts_with($value, 'banners/')) {
+            // Check if it's in storage first
+            $storagePath = str_replace(['/banners/', 'banners/', '/sarees/', 'sarees/'], ['banners/', 'banners/', 'sarees/', 'sarees/'], $value);
+            if (\Illuminate\Support\Facades\Storage::disk('public')->exists($storagePath)) {
+                return asset('storage/' . $storagePath);
+            }
             return asset(ltrim($value, '/'));
         }
         

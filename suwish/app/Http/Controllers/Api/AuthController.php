@@ -61,6 +61,10 @@ class AuthController extends Controller
             'email' => 'required|string|email|max:255|unique:users',
             'phone' => 'required|string|max:15|unique:users',
             'password' => 'required|string|min:8|confirmed',
+            'address' => 'nullable|string|max:255',
+            'city' => 'nullable|string|max:100',
+            'state' => 'nullable|string|max:100',
+            'pincode' => 'nullable|string|max:20',
         ]);
 
         $user = User::create([
@@ -68,6 +72,12 @@ class AuthController extends Controller
             'email' => $request->email,
             'phone' => $request->phone,
             'password' => Hash::make($request->password),
+            'shipping_address' => $request->address,
+            'shipping_city' => $request->city,
+            'shipping_state' => $request->state,
+            'shipping_pincode' => $request->pincode,
+            'shipping_phone' => $request->phone, // Default shipping phone to main phone
+            'shipping_name' => $request->name,   // Default shipping name to main name
         ]);
 
         // Create a token for the new user
@@ -105,6 +115,54 @@ class AuthController extends Controller
     public function user(Request $request)
     {
         return response()->json($request->user());
+    }
+
+    /**
+     * Update authenticated user's profile
+     */
+    public function updateProfile(Request $request)
+    {
+        $user = $request->user();
+
+        $request->validate([
+            'name' => 'sometimes|string|max:255',
+            'email' => 'sometimes|string|email|max:255|unique:users,email,' . $user->id,
+            'phone' => 'sometimes|string|max:20|unique:users,phone,' . $user->id,
+            'date_of_birth' => 'sometimes|nullable|date',
+        ]);
+
+        $user->name = $request->has('name') ? $request->name : $user->name;
+        $user->email = $request->has('email') ? $request->email : $user->email;
+        $user->phone = $request->has('phone') ? $request->phone : $user->phone;
+        if ($request->has('date_of_birth')) {
+            $user->date_of_birth = $request->date_of_birth;
+        }
+
+        $user->save();
+
+        return response()->json($user);
+    }
+
+    /**
+     * Change authenticated user's password
+     */
+    public function changePassword(Request $request)
+    {
+        $request->validate([
+            'current_password' => 'required',
+            'new_password' => 'required|min:8|confirmed',
+        ]);
+
+        $user = $request->user();
+
+        if (!Hash::check($request->current_password, $user->password)) {
+            return response()->json(['message' => 'Current password incorrect'], 400);
+        }
+
+        $user->password = Hash::make($request->new_password);
+        $user->save();
+
+        return response()->json(['message' => 'Password updated successfully']);
     }
 
     /**

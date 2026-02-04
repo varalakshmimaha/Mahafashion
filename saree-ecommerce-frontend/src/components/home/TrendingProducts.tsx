@@ -17,10 +17,15 @@ const TrendingProducts = () => {
         const fetchProducts = async () => {
             try {
                 const response = await productAPI.getTrendingProducts();
-                setProducts(response);
+                if (response && response.length > 0) {
+                    setProducts(response);
+                } else {
+                    setProducts([]); // No fallback, display nothing if API returns empty
+                }
                 setLoading(false);
             } catch (error) {
                 console.error('Error fetching trending products:', error);
+                setProducts([]); // No fallback, display nothing on error
                 setLoading(false);
             }
         };
@@ -29,10 +34,10 @@ const TrendingProducts = () => {
     }, []);
 
     if (loading) return null;
-    if (products.length === 0) return null;
+    if (products.length === 0) return null; // Don't render section if no products
 
     return (
-        <section className="py-20 bg-white">
+        <section className="mt-16 bg-white">
             <div className="container mx-auto px-4">
                 {/* Heading Section */}
                 <div className="text-center mb-16">

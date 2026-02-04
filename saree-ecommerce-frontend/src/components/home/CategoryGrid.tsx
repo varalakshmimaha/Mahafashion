@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { categoryAPI } from '../../services/api';
 
@@ -10,18 +10,25 @@ interface Category {
   image_url?: string;
 }
 
-const defaultCategories = [
-  { name: 'Banarasi', image: '/sarees/saree1.jpg', slug: 'banarasi' },
-  { name: 'Kanjivaram', image: '/sarees/saree2.jpg', slug: 'kanjivaram' },
-  { name: 'Silk', image: '/sarees/saree3.jpg', slug: 'silk' },
-  { name: 'Chiffon', image: '/sarees/saree4.jpg', slug: 'chiffon' },
-  { name: 'Cotton', image: '/sarees/saree1.jpg', slug: 'cotton' },
-  { name: 'View All', image: '/sarees/saree2.jpg', slug: '' },
+const defaultCategories: Category[] = [
+  { id: 1, name: 'Banarasi', image: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=400&h=400&fit=crop', slug: 'banarasi' },
+  { id: 2, name: 'Kanjivaram', image: 'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=400&h=400&fit=crop', slug: 'kanjivaram' },
+  { id: 3, name: 'Silk', image: 'https://images.unsplash.com/photo-1594463750939-ebb28c3f7f75?w=400&h=400&fit=crop', slug: 'silk' },
+  { id: 4, name: 'Chiffon', image: 'https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?w=400&h=400&fit=crop', slug: 'chiffon' },
+  { id: 5, name: 'Cotton', image: 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=400&h=400&fit=crop', slug: 'cotton' },
+  { id: 0, name: 'View All', image: 'https://images.unsplash.com/photo-1583391733981-8b530c004e14?w=400&h=400&fit=crop', slug: '' },
+];
+
+const placeholderImages = [
+  'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=400&h=400&fit=crop',
+  'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=400&h=400&fit=crop',
+  'https://images.unsplash.com/photo-1594463750939-ebb28c3f7f75?w=400&h=400&fit=crop',
+  'https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?w=400&h=400&fit=crop',
 ];
 
 const CategoryGrid = () => {
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Initialize with default categories so something shows immediately
+  const [categories, setCategories] = useState<Category[]>(defaultCategories);
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -29,35 +36,30 @@ const CategoryGrid = () => {
         const data = await categoryAPI.getCategories();
         if (data && data.length > 0) {
           // Take first 5 categories and add "View All"
-          const displayCats = data.slice(0, 5).map((cat: Category) => ({
+          const displayCats = data.slice(0, 5).map((cat: Category, idx: number) => ({
             ...cat,
-            image: cat.image_url || cat.image || `/sarees/saree${Math.floor(Math.random() * 6) + 1}.jpg`,
+            image: cat.image_url || cat.image || placeholderImages[idx % placeholderImages.length],
           }));
           displayCats.push({
             id: 0,
             name: 'View All',
             slug: '',
-            image: '/sarees/saree6.jpg',
+            image: 'https://images.unsplash.com/photo-1583391733981-8b530c004e14?w=400&h=400&fit=crop',
           });
           setCategories(displayCats);
-        } else {
-          setCategories(defaultCategories as any);
         }
+        // If no data, keep using default categories (already set)
       } catch (error) {
-        console.error('Error fetching categories:', error);
-        setCategories(defaultCategories as any);
-      } finally {
-        setLoading(false);
+        console.error('Error fetching categories, using defaults:', error);
+        // Keep using default categories (already set)
       }
     };
 
     fetchCategories();
   }, []);
 
-  const displayCategories = categories.length > 0 ? categories : defaultCategories;
-
   return (
-    <section className="py-20 bg-white">
+    <section className="mt-16 bg-white">
       <div className="container mx-auto px-4">
         {/* Heading Section */}
         <div className="text-center mb-12">
@@ -66,30 +68,25 @@ const CategoryGrid = () => {
         </div>
         
         {/* Categories Grid/Scroll */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 md:gap-8">
-          {displayCategories.map((category, index) => (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-6">
+          {categories.map((category, index) => (
             <Link 
               to={`/products?category=${category.slug}`} 
               key={index} 
-              className="group flex flex-col items-center"
+              className="text-center group"
             >
-              <div className="relative w-full aspect-square mb-4 overflow-hidden rounded-2xl bg-gray-100 shadow-sm transition-all duration-500 group-hover:shadow-xl group-hover:-translate-y-2">
+              <div className="aspect-square rounded-xl overflow-hidden">
                 <img 
                   src={category.image}
                   alt={category.name}
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                  className="w-full h-full object-cover"
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;
-                    // Use local saree images as fallback
-                    const sareeIndex = (index % 4) + 1;
-                    target.src = `/sarees/saree${sareeIndex}.jpg`;
+                    target.src = placeholderImages[index % placeholderImages.length];
                   }}
                 />
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300"></div>
               </div>
-              <h3 className="text-lg font-bold text-gray-800 group-hover:text-primary transition-colors duration-300">
-                {category.name}
-              </h3>
+              <p className="mt-2 font-medium">{category.name}</p>
             </Link>
           ))}
         </div>

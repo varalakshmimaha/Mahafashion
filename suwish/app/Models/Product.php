@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\ProductPattern;
+use App\Models\Subcategory;
 
 class Product extends Model
 {
@@ -12,6 +13,7 @@ class Product extends Model
     
     protected $fillable = [
         'category_id',
+        'subcategory_id',
         'pattern_id',
         'name',
         'description',
@@ -40,7 +42,12 @@ class Product extends Model
         'brand',
         'sizes',
         'default_image_index',
+        'package_contains',
+        'fit',
+        'origin',
     ];
+
+    protected $appends = ['main_image_url', 'final_price', 'discounted_price'];
     
     protected $casts = [
         'image_urls' => 'array',
@@ -64,21 +71,8 @@ class Product extends Model
         return $query->where('status', 'active');
     }
     
+
     
-    // Accessor for image_urls to ensure it's always an array
-    public function getImageUrlsAttribute($value)
-    {
-        if (is_array($value)) {
-            return $value;
-        }
-        
-        if (is_string($value)) {
-            $decoded = json_decode($value, true);
-            return is_array($decoded) ? $decoded : [];
-        }
-        
-        return [];
-    }
     
     public function pattern()
     {
@@ -89,6 +83,12 @@ class Product extends Model
     public function category()
     {
         return $this->belongsTo(Category::class, 'category_id');
+    }
+
+    // Subcategory relation
+    public function subcategory()
+    {
+        return $this->belongsTo(Subcategory::class, 'subcategory_id');
     }
 
     /**
@@ -166,59 +166,17 @@ class Product extends Model
     {
         return $this->hasMany(OrderItem::class);
     }
-    
-    public function getProcessedImageUrlsAttribute()
+
+    public function reviews()
     {
-        $imageUrls = $this->attributes['image_urls'] ?? null;
-        
-        if ($imageUrls && is_array($imageUrls)) {
-            return array_map(function($url) {
-                // Check if the image path is already an absolute path (starts with /)
-                if (str_starts_with($url, '/')) {
-                    return asset($url);
-                } else {
-                    // It's a storage path, prepend storage/
-                    return asset('storage/' . $url);
-                }
-            }, $imageUrls);
-        }
-        
-        return [];
+        return $this->hasMany(Review::class);
     }
     
-    public function getMainImageUrlAttribute()
-    {
-        $rawImageUrl = $this->attributes['image_url'] ?? null;
-        
-        if ($rawImageUrl) {
-            // Check if the image path is already an absolute path (starts with /)
-            if (str_starts_with($rawImageUrl, '/')) {
-                return asset($rawImageUrl);
-            } else {
-                // It's a storage path, prepend storage/
-                return asset('storage/' . $rawImageUrl);
-            }
-        }
-        
-        return null;
-    }
     
-    public function getDefaultImageUrlAttribute()
-    {
-        $imageUrls = $this->processedImageUrls;
-        
-        if (!empty($imageUrls) && isset($imageUrls[$this->default_image_index])) {
-            return $imageUrls[$this->default_image_index];
-        }
-        
-        // Fallback to the first image if default index is out of bounds
-        if (!empty($imageUrls) && isset($imageUrls[0])) {
-            return $imageUrls[0];
-        }
-        
-        // Fallback to main image
-        return $this->main_image_url;
-    }
+    
+    
+    
+    
     
     public function getAvailableSizesAttribute()
     {
@@ -231,5 +189,56 @@ class Product extends Model
         return [];
     }
     
+    // Accessor for is_active status
+    public function getIsActiveAttribute()
+    {
+        return $this->status === 'active';
+    }
 
+    // Accessor for main_image_url
+    public function getMainImageUrlAttribute()
+    {
+        // Eager load images if not already loaded to prevent N+1 issues
+        if (!$this->relationLoaded('images')) {
+            $this->load('images');
+        }
+
+        if ($this->images->isNotEmpty()) {
+            // Try to find a default image
+            $defaultImage = $this->images->where('is_default', true)->first();
+
+            // If no default, take the first image
+            $image = $defaultImage ?? $this->images->first();
+
+            // Ensure the image exists and has an image_url
+            if ($image && $image->image_url) {
+                return asset('storage/' . $image->image_url);
+            }
+        }
+        return null; // Or a placeholder image path
+    }
+
+    /**
+     * Calculate the final price after applying discount
+     * This is the price customer actually pays
+     */
+    public function getFinalPriceAttribute()
+    {
+        $basePrice = $this->attributes['price'] ?? 0;
+        $discount = $this->attributes['discount'] ?? 0;
+        
+        if ($discount > 0) {
+            return round($basePrice - ($basePrice * $discount / 100), 2);
+        }
+        
+        return $basePrice;
+    }
+
+    /**
+     * Alias for final_price (for backwards compatibility)
+     */
+    public function getDiscountedPriceAttribute()
+    {
+        return $this->final_price;
+    }
 }

@@ -65,9 +65,10 @@ const ColorSelector: React.FC<ColorSelectorProps> = ({
 
     return (
         <div className="mb-6">
-            <h3 className="text-lg font-semibold mb-3">
-                Color: <span className="font-normal">{selectedColorName}</span>
-            </h3>
+            <h3 className="text-lg font-semibold mb-3">Available Colors</h3>
+            <div className="mb-3 text-sm text-gray-600">
+                {selectedColorName} ({selectedColor})
+            </div>
             <div className="flex flex-wrap gap-3">
                 {availableColors.map((color) => (
                     <button 

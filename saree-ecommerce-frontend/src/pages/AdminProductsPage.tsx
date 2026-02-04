@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { productAPI, categoryAPI } from '../services/api';
+import { productAPI, categoryAPI, API_STORAGE_URL } from '../services/api';
 import { Plus, Edit2, Trash2, Search, Image as ImageIcon, X, Eye } from 'lucide-react';
 import { useNotification } from '../context/NotificationContext';
 import { Category } from '../types';
@@ -34,8 +34,12 @@ const AdminProductsPage: React.FC = () => {
     price: '',
     sku: '',
     category_id: '',
+    subcategory_id: '',
     stock_quantity: '',
   });
+
+  const [subcategories, setSubcategories] = useState<any[]>([]);
+  const [isLoadingSubcategories, setIsLoadingSubcategories] = useState(false);
 
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -44,6 +48,28 @@ const AdminProductsPage: React.FC = () => {
     fetchProducts();
     fetchCategories();
   }, []);
+
+  useEffect(() => {
+    if (formData.category_id) {
+      fetchSubcategories(formData.category_id);
+    } else {
+      setSubcategories([]);
+    }
+  }, [formData.category_id]);
+
+  const fetchSubcategories = async (categoryId: string) => {
+    setIsLoadingSubcategories(true);
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/api/subcategories/by-category/${categoryId}`);
+      const data = await response.json();
+      setSubcategories(Array.isArray(data) ? data : data.data || []);
+    } catch (error) {
+      console.error('Error fetching subcategories:', error);
+      setSubcategories([]);
+    } finally {
+      setIsLoadingSubcategories(false);
+    }
+  };
 
   const fetchProducts = async () => {
     setIsLoading(true);
@@ -86,6 +112,7 @@ const AdminProductsPage: React.FC = () => {
       price: '',
       sku: '',
       category_id: '',
+      subcategory_id: '',
       stock_quantity: '',
     });
     setImageFile(null);
@@ -101,14 +128,15 @@ const AdminProductsPage: React.FC = () => {
       price: product.price.toString(),
       sku: product.sku || '',
       category_id: product.categoryId || '',
+      subcategory_id: (product as any).subcategory_id || '',
       stock_quantity: product.stockQuantity?.toString() || '0',
     });
     // Set image preview from existing URL if available
     if (product.imageUrl) {
       // Assuming existing images are relative or absolute URLs
-      setImagePreview(product.imageUrl.startsWith('http') ? product.imageUrl : `http://127.0.0.1:8000/${product.imageUrl}`);
+      setImagePreview(product.imageUrl.startsWith('http') ? product.imageUrl : `${API_STORAGE_URL}/${product.imageUrl}`);
     } else {
-        setImagePreview(null);
+      setImagePreview(null);
     }
     setShowModal(true);
   };
@@ -128,7 +156,7 @@ const AdminProductsPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
       const formDataToSend = new FormData();
       formDataToSend.append('name', formData.name);
@@ -137,6 +165,9 @@ const AdminProductsPage: React.FC = () => {
       formDataToSend.append('sku', formData.sku);
       if (formData.category_id) {
         formDataToSend.append('category_id', formData.category_id);
+      }
+      if (formData.subcategory_id) {
+        formDataToSend.append('subcategory_id', formData.subcategory_id);
       }
       formDataToSend.append('stock_quantity', formData.stock_quantity);
 
@@ -161,7 +192,7 @@ const AdminProductsPage: React.FC = () => {
     }
   };
 
-  const filteredProducts = products.filter(product => 
+  const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     product.sku?.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -171,10 +202,7 @@ const AdminProductsPage: React.FC = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Manage Products</h1>
         <button
-          onClick={() => {
-            resetForm();
-            setShowModal(true);
-          }}
+          onClick={() => navigate('/admin/products/create')}
           className="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
         >
           <Plus size={20} />
@@ -227,13 +255,17 @@ const AdminProductsPage: React.FC = () => {
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-10 w-10 bg-gray-100 rounded-md flex items-center justify-center overflow-hidden">
                           {product.imageUrl ? (
-                            <img 
-                                src={product.imageUrl.startsWith('http') ? product.imageUrl : `http://127.0.0.1:8000/${product.imageUrl}`} 
-                                alt={product.name} 
-                                className="h-full w-full object-cover"
+                            <img
+                              src={product.imageUrl.startsWith('http') ? product.imageUrl : `${API_STORAGE_URL}/${product.imageUrl}`}
+                              alt={product.name}
+                              className="h-full w-full object-cover"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.src = '/placeholder-saree.jpg';
+                              }}
                             />
                           ) : (
-                            <ImageIcon className="w-5 h-5 text-gray-400" />
+                            <img src="/placeholder-saree.jpg" alt="No image" className="h-full w-full object-cover" />
                           )}
                         </div>
                         <div className="ml-4">
@@ -290,14 +322,14 @@ const AdminProductsPage: React.FC = () => {
               <h2 className="text-xl font-bold text-gray-900">
                 {editingProduct ? 'Edit Product' : 'Add New Product'}
               </h2>
-              <button 
+              <button
                 onClick={() => setShowModal(false)}
                 className="text-gray-400 hover:text-gray-500"
               >
                 <X size={24} />
               </button>
             </div>
-            
+
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="col-span-2">
@@ -344,6 +376,23 @@ const AdminProductsPage: React.FC = () => {
                     <option value="">Select Category</option>
                     {categories.map((cat) => (
                       <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Subcategory</label>
+                  <select
+                    value={formData.subcategory_id}
+                    onChange={(e) => setFormData({ ...formData, subcategory_id: e.target.value })}
+                    disabled={!formData.category_id || isLoadingSubcategories}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary disabled:bg-gray-100"
+                  >
+                    <option value="">{isLoadingSubcategories ? 'Loading...' : 'Select Subcategory'}</option>
+                    {subcategories.map((sub) => (
+                      <option key={sub.id} value={sub.id}>
+                        {sub.name} {!sub.is_active && '(Inactive)'}
+                      </option>
                     ))}
                   </select>
                 </div>

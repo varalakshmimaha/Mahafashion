@@ -21,11 +21,17 @@ class ProductVariant extends Model
         'stock',
         'price_adjustment',
         'sku',
+        'price',
+        'mrp',
+        'discount',
     ];
 
     protected $casts = [
         'stock' => 'integer',
         'price_adjustment' => 'decimal:2',
+        'price' => 'decimal:2',
+        'mrp' => 'decimal:2',
+        'discount' => 'decimal:2',
     ];
 
     public function product()

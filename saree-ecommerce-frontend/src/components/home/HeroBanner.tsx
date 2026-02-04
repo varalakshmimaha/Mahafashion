@@ -17,10 +17,43 @@ interface Banner {
   updated_at: string;
 }
 
+// Fallback banners when API is unavailable
+const fallbackBanners: Banner[] = [
+    {
+        id: 1,
+        image_path: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=1920&h=1080&fit=crop',
+        title: 'Elegant Saree Collection',
+        link: '/products',
+        order: 1,
+        is_active: true,
+        created_at: '',
+        updated_at: ''
+    },
+    {
+        id: 2,
+        image_path: 'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=1920&h=1080&fit=crop',
+        title: 'New Arrivals',
+        link: '/products?sort=newest',
+        order: 2,
+        is_active: true,
+        created_at: '',
+        updated_at: ''
+    },
+    {
+        id: 3,
+        image_path: 'https://images.unsplash.com/photo-1594463750939-ebb28c3f7f75?w=1920&h=1080&fit=crop',
+        title: 'Premium Silk Collection',
+        link: '/products?category=silk',
+        order: 3,
+        is_active: true,
+        created_at: '',
+        updated_at: ''
+    }
+];
+
 const HeroBanner: React.FC = () => {
     const [banners, setBanners] = useState<Banner[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
-    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchBanners = async () => {
@@ -31,10 +64,15 @@ const HeroBanner: React.FC = () => {
                 // Note: The API might already filter/sort, but this is a safety measure
                 const activeBanners = data.filter((banner: Banner) => banner.is_active)
                                           .sort((a: Banner, b: Banner) => a.order - b.order);
-                setBanners(activeBanners);
+                if (activeBanners.length > 0) {
+                    setBanners(activeBanners);
+                } else {
+                    setBanners(fallbackBanners);
+                }
                 setLoading(false);
             } catch (err: any) {
-                setError(err.message || 'Failed to fetch banners.');
+                console.error('Failed to fetch banners, using fallback:', err.message);
+                setBanners(fallbackBanners);
                 setLoading(false);
             }
         };
@@ -42,8 +80,7 @@ const HeroBanner: React.FC = () => {
         fetchBanners();
     }, []);
 
-    if (loading) return <div>Loading banners...</div>;
-    if (error) return <div>Error: {error}</div>;
+    if (loading) return <div className="h-[500px] md:h-[650px] lg:h-[750px] bg-gray-100 animate-pulse flex items-center justify-center"><span className="text-gray-400">Loading...</span></div>;
     if (banners.length === 0) return null; // Or display a fallback if no banners are active
 
     return (

@@ -1,48 +1,32 @@
 <?php
-require_once __DIR__.'/vendor/autoload.php';
 
-use Illuminate\Support\Facades\Hash;
-use App\Models\Admin;
-use Illuminate\Support\Facades\Auth;
+require __DIR__.'/vendor/autoload.php';
 
-// Create Laravel application instance
 $app = require_once __DIR__.'/bootstrap/app.php';
 $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
 $kernel->bootstrap();
 
-// Find the admin user
-$admin = Admin::where('email', 'admin@gmail.com')->first();
+use App\Models\User;
+use Illuminate\Support\Facades\Hash;
 
-if (!$admin) {
-    echo "Admin user not found\n";
-    exit;
-}
+$user = User::where('email', 'admin@gmail.com')->first();
 
-echo "Admin found: " . $admin->name . " (" . $admin->email . ")\n";
-echo "Is active: " . ($admin->is_active ? 'Yes' : 'No') . "\n";
-
-// Test password verification
-$passwordMatch = Hash::check('password123', $admin->password);
-echo "Password match for 'password123': " . ($passwordMatch ? 'Yes' : 'No') . "\n";
-
-if ($passwordMatch) {
-    echo "Password verification successful!\n";
+if ($user) {
+    echo "✓ User Found\n";
+    echo "Name: " . $user->name . "\n";
+    echo "Email: " . $user->email . "\n";
+    echo "Is Admin: " . ($user->is_admin ? 'Yes' : 'No') . "\n";
+    echo "Email Verified: " . ($user->email_verified_at ? 'Yes' : 'No') . "\n";
+    echo "\nPassword Test:\n";
+    echo "Password '12345678' matches: " . (Hash::check('12345678', $user->password) ? '✓ YES' : '✗ NO') . "\n";
+    
+    // Test login attempt
+    echo "\nAttempting Auth::attempt()...\n";
+    if (Auth::attempt(['email' => 'admin@gmail.com', 'password' => '12345678'])) {
+        echo "✓ Authentication successful!\n";
+    } else {
+        echo "✗ Authentication failed!\n";
+    }
 } else {
-    echo "Password verification failed. Current hash: " . $admin->password . "\n";
-}
-
-// Try to authenticate
-$attempt = Auth::guard('admin')->attempt([
-    'email' => 'admin@gmail.com',
-    'password' => 'password123'
-]);
-
-echo "Auth attempt result: " . ($attempt ? 'Success' : 'Failed') . "\n";
-
-if ($attempt) {
-    echo "Successfully authenticated as admin\n";
-    $user = Auth::guard('admin')->user();
-    echo "Current admin user: " . $user->name . "\n";
-} else {
-    echo "Authentication failed\n";
+    echo "✗ User not found!\n";
 }

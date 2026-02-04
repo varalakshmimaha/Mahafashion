@@ -4,6 +4,7 @@ import { Ruler, X } from 'lucide-react';
 
 interface SizeSelectorProps {
     variants?: ProductVariant[];
+    sizes?: Array<{ size: string; stock: number; price?: number }>; // Standalone sizes
     selectedColor: string;
     selectedSize: string;
     onSelectSize: (size: string) => void;
@@ -14,6 +15,7 @@ interface SizeOption {
     stock: number;
     available: boolean;
     priceAdjustment: number;
+    price?: number; // Size-specific price
 }
 
 // Size Guide Modal Component
@@ -22,14 +24,14 @@ const SizeGuideModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ is
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
-            <div 
+            <div
                 className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
                 onClick={e => e.stopPropagation()}
             >
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-gray-100">
                     <h2 className="text-2xl font-bold text-gray-900">Size Guide</h2>
-                    <button 
+                    <button
                         onClick={onClose}
                         className="w-10 h-10 rounded-full hover:bg-gray-100 flex items-center justify-center transition-colors"
                     >
@@ -130,7 +132,7 @@ const SizeGuideModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ is
 
                 {/* Footer */}
                 <div className="p-6 border-t border-gray-100">
-                    <button 
+                    <button
                         onClick={onClose}
                         className="w-full py-3 bg-maroon-600 text-white font-semibold rounded-xl hover:bg-maroon-700 transition-colors"
                     >
@@ -142,28 +144,69 @@ const SizeGuideModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ is
     );
 };
 
-const SizeSelector: React.FC<SizeSelectorProps> = ({ 
-    variants, 
-    selectedColor, 
-    selectedSize, 
-    onSelectSize 
+const SizeSelector: React.FC<SizeSelectorProps> = ({
+    variants,
+    sizes,
+    selectedColor,
+    selectedSize,
+    onSelectSize
 }) => {
     const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
-    // Get available sizes for the selected color
+
+    // Get available sizes for the selected color OR standalone sizes
     const availableSizes = useMemo((): SizeOption[] => {
-        if (!variants || variants.length === 0 || !selectedColor) {
-            return [];
+        // PRIORITY 1: If we have variants with a selected color, use them
+        if (variants && variants.length > 0 && selectedColor) {
+            const colorVariants = variants.filter(v => v.color_code === selectedColor);
+
+            // Sort sizes in ascending order (S, M, L, XL, XXL)
+            const sortedVariants = [...colorVariants].sort((a, b) => {
+                const sizeOrder: Record<string, number> = {
+                    'XS': 1,
+                    'S': 2,
+                    'M': 3,
+                    'L': 4,
+                    'XL': 5,
+                    'XXL': 6
+                };
+                return (sizeOrder[a.size] || 999) - (sizeOrder[b.size] || 999);
+            });
+
+            return sortedVariants.map(variant => ({
+                size: variant.size,
+                stock: variant.stock,
+                available: variant.stock > 0,
+                priceAdjustment: Number(variant.price_adjustment) || 0,
+                price: variant.price // Size-specific price from variant
+            }));
         }
 
-        const colorVariants = variants.filter(v => v.color_code === selectedColor);
-        
-        return colorVariants.map(variant => ({
-            size: variant.size,
-            stock: variant.stock,
-            available: variant.stock > 0,
-            priceAdjustment: variant.price_adjustment
-        }));
-    }, [variants, selectedColor]);
+        // PRIORITY 2: Use standalone sizes (no color variants)
+        if (sizes && sizes.length > 0) {
+            // Sort sizes
+            const sortedSizes = [...sizes].sort((a, b) => {
+                const sizeOrder: Record<string, number> = {
+                    'XS': 1,
+                    'S': 2,
+                    'M': 3,
+                    'L': 4,
+                    'XL': 5,
+                    'XXL': 6
+                };
+                return (sizeOrder[a.size] || 999) - (sizeOrder[b.size] || 999);
+            });
+
+            return sortedSizes.map(sizeItem => ({
+                size: sizeItem.size,
+                stock: sizeItem.stock,
+                available: sizeItem.stock > 0,
+                priceAdjustment: 0,
+                price: sizeItem.price // Size-specific price from standalone size
+            }));
+        }
+
+        return [];
+    }, [variants, sizes, selectedColor]);
 
     if (availableSizes.length === 0) {
         return null;
@@ -174,18 +217,14 @@ const SizeSelector: React.FC<SizeSelectorProps> = ({
     return (
         <div className="mb-6">
             <div className="flex items-center justify-between mb-3">
-                <h3 className="text-lg font-semibold">
-                    Size: <span className="font-normal">{selectedSize || 'Select a size'}</span>
-                </h3>
+                <div>
+                    <h3 className="text-lg font-semibold">Available Sizes</h3>
+                    <div className="text-sm text-gray-600">
+                        Selected: {selectedSize || 'None'}
+                    </div>
+                </div>
                 <div className="flex items-center gap-4">
-                    {selectedSizeInfo && (
-                        <span className={`text-sm ${selectedSizeInfo.stock <= 5 ? 'text-red-600 font-semibold' : 'text-green-600'}`}>
-                            {selectedSizeInfo.stock <= 5 
-                                ? `Only ${selectedSizeInfo.stock} left!` 
-                                : `${selectedSizeInfo.stock} in stock`
-                            }
-                        </span>
-                    )}
+                    {/* Stock status indicator removed as per user request */}
                     <button
                         onClick={() => setIsSizeGuideOpen(true)}
                         className="flex items-center gap-1.5 text-sm text-maroon-600 hover:text-maroon-700 font-medium transition-colors"
@@ -195,30 +234,31 @@ const SizeSelector: React.FC<SizeSelectorProps> = ({
                     </button>
                 </div>
             </div>
-            
+
             <div className="flex flex-wrap gap-3">
                 {availableSizes.map((sizeOption) => (
                     <button
                         key={sizeOption.size}
                         onClick={() => sizeOption.available && onSelectSize(sizeOption.size)}
                         disabled={!sizeOption.available}
-                        className={`relative px-4 py-2 min-w-[60px] border-2 rounded-lg font-medium transition-all ${
-                            selectedSize === sizeOption.size
-                                ? 'border-blue-600 bg-blue-50 text-blue-700'
-                                : sizeOption.available
+                        className={`relative px-4 py-2 min-w-[60px] border-2 rounded-lg font-medium transition-all ${selectedSize === sizeOption.size
+                            ? 'border-blue-600 bg-blue-50 text-blue-700'
+                            : sizeOption.available
                                 ? 'border-gray-300 hover:border-gray-400 text-gray-700'
                                 : 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
-                        }`}
+                            }`}
                         title={
-                            !sizeOption.available 
-                                ? 'Out of stock' 
-                                : sizeOption.priceAdjustment !== 0 
-                                ? `Additional ₹${sizeOption.priceAdjustment.toFixed(2)}` 
-                                : sizeOption.size
+                            !sizeOption.available
+                                ? 'Out of stock'
+                                : sizeOption.price
+                                    ? `₹${sizeOption.price.toFixed(0)} for this size`
+                                    : sizeOption.priceAdjustment !== 0
+                                        ? `Additional ₹${sizeOption.priceAdjustment.toFixed(2)}`
+                                        : sizeOption.size
                         }
                     >
                         {sizeOption.size}
-                        
+
                         {/* Out of stock indicator */}
                         {!sizeOption.available && (
                             <div className="absolute inset-0 flex items-center justify-center">
@@ -226,8 +266,15 @@ const SizeSelector: React.FC<SizeSelectorProps> = ({
                             </div>
                         )}
 
-                        {/* Price adjustment badge */}
-                        {sizeOption.priceAdjustment !== 0 && selectedSize === sizeOption.size && (
+                        {/* Size-specific price badge */}
+                        {sizeOption.price && selectedSize === sizeOption.size && (
+                            <span className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-1.5 py-0.5 rounded-full">
+                                ₹{sizeOption.price.toFixed(0)}
+                            </span>
+                        )}
+
+                        {/* Price adjustment badge (fallback) */}
+                        {!sizeOption.price && sizeOption.priceAdjustment !== 0 && selectedSize === sizeOption.size && (
                             <span className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs px-1.5 py-0.5 rounded-full">
                                 +₹{sizeOption.priceAdjustment.toFixed(0)}
                             </span>

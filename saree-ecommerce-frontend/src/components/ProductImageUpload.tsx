@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { API_STORAGE_URL } from '../services/api';
 
 interface ImageUploadData {
   file: File;
@@ -15,16 +16,33 @@ interface ProductImageUploadProps {
     color_code: string | null;
     is_default: boolean;
   }>;
+  variants?: Array<{
+    color_code: string;
+    color_name: string;
+  }>;
+  initialColorCode?: string | null;
   onUploadSuccess?: () => void;
 }
 
 const ProductImageUpload: React.FC<ProductImageUploadProps> = ({
   productId,
   existingImages = [],
+  variants = [],
+  initialColorCode = null,
   onUploadSuccess
 }) => {
   const [images, setImages] = useState<ImageUploadData[]>([]);
-  const [selectedColorCode, setSelectedColorCode] = useState<string | null>(null);
+  // Use initialColorCode or first variant color if available
+  const [selectedColorCode, setSelectedColorCode] = useState<string | null>(
+    initialColorCode || (variants.length > 0 ? variants[0].color_code : null)
+  );
+
+  // Sync with initialColorCode if it changes from parent
+  useEffect(() => {
+    if (initialColorCode) {
+      setSelectedColorCode(initialColorCode);
+    }
+  }, [initialColorCode]);
   const [isDefaultForColor, setIsDefaultForColor] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
@@ -125,7 +143,7 @@ const ProductImageUpload: React.FC<ProductImageUploadProps> = ({
       // Upload each color group
       for (const [colorKey, colorImages] of Object.entries(imagesByColor)) {
         const formData = new FormData();
-        
+
         colorImages.forEach((img, index) => {
           formData.append(`images[${index}]`, img.file);
         });
@@ -145,7 +163,7 @@ const ProductImageUpload: React.FC<ProductImageUploadProps> = ({
           {
             method: 'POST',
             headers: {
-              Authorization: `Bearer ${localStorage.getItem('token')}`
+              'Authorization': localStorage.getItem('authToken') || ''
             },
             body: formData
           }
@@ -159,7 +177,7 @@ const ProductImageUpload: React.FC<ProductImageUploadProps> = ({
       // Clear uploaded images
       images.forEach(img => URL.revokeObjectURL(img.preview));
       setImages([]);
-      
+
       // Show success message but keep the form open for continuous uploads
       alert(`${images.length} image(s) uploaded successfully! You can continue adding more images.`);
       onUploadSuccess?.();
@@ -184,7 +202,7 @@ const ProductImageUpload: React.FC<ProductImageUploadProps> = ({
         {
           method: 'DELETE',
           headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`
+            'Authorization': localStorage.getItem('authToken') || ''
           }
         }
       );
@@ -206,40 +224,83 @@ const ProductImageUpload: React.FC<ProductImageUploadProps> = ({
   return (
     <div className="space-y-6">
       {/* Color Selection */}
-      <div className="flex items-center gap-4">
-        <label className="font-medium text-gray-700">Color Assignment:</label>
-        <input
-          type="color"
-          value={selectedColorCode || '#000000'}
-          onChange={(e) => setSelectedColorCode(e.target.value)}
-          className="w-12 h-12 rounded border cursor-pointer"
-        />
-        <input
-          type="text"
-          value={selectedColorCode || ''}
-          onChange={(e) => setSelectedColorCode(e.target.value || null)}
-          placeholder="#RRGGBB or leave empty for default"
-          className="px-3 py-2 border rounded flex-1"
-          maxLength={7}
-        />
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={isDefaultForColor}
-            onChange={(e) => setIsDefaultForColor(e.target.checked)}
-            className="w-4 h-4"
-          />
-          <span className="text-sm">Default for this color</span>
-        </label>
+      <div className="space-y-4">
+        <div className="flex items-center gap-4">
+          <label className="font-medium text-gray-700 min-w-fit">Selected Color:</label>
+          <div className="flex items-center gap-2">
+            <input
+              type="color"
+              value={selectedColorCode || '#000000'}
+              onChange={(e) => setSelectedColorCode(e.target.value)}
+              className="w-10 h-10 rounded border cursor-pointer"
+            />
+            <input
+              type="text"
+              value={selectedColorCode || ''}
+              onChange={(e) => setSelectedColorCode(e.target.value || null)}
+              placeholder="#RRGGBB"
+              className="px-3 py-2 border rounded w-32"
+              maxLength={7}
+            />
+          </div>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={isDefaultForColor}
+              onChange={(e) => setIsDefaultForColor(e.target.checked)}
+              className="w-4 h-4"
+            />
+            <span className="text-sm">Default Image for this color</span>
+          </label>
+        </div>
+
+        {/* Quick select colors from variants */}
+        {variants.length > 0 && (
+          <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+            <p className="text-sm font-medium text-blue-800 mb-2">Quick Select from Variants:</p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedColorCode(null)}
+                className={`px-3 py-1.5 rounded-lg text-sm transition ${selectedColorCode === null
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-blue-600 border border-blue-200 hover:bg-blue-50'
+                  }`}
+              >
+                Generic/All
+              </button>
+              {/* Extract unique colors from variants */}
+              {Array.from(new Set(variants.map(v => v.color_code))).map(code => {
+                const variant = variants.find(v => v.color_code === code);
+                return (
+                  <button
+                    key={code}
+                    type="button"
+                    onClick={() => setSelectedColorCode(code)}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition ${selectedColorCode === code
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+                      }`}
+                  >
+                    <div
+                      className="w-4 h-4 rounded-full border border-gray-200"
+                      style={{ backgroundColor: code }}
+                    />
+                    {variant?.color_name || code}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Drop Zone */}
       <div
-        className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-          dragActive
-            ? 'border-blue-500 bg-blue-50'
-            : 'border-gray-300 hover:border-gray-400'
-        }`}
+        className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-colors ${dragActive
+          ? 'border-blue-500 bg-blue-50'
+          : 'border-gray-300 hover:border-gray-400'
+          }`}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
         onDragOver={handleDrag}
@@ -253,7 +314,7 @@ const ProductImageUpload: React.FC<ProductImageUploadProps> = ({
           onChange={handleFileInput}
           className="hidden"
         />
-        
+
         <div className="space-y-4">
           <svg
             className="mx-auto h-12 w-12 text-gray-400"
@@ -268,7 +329,7 @@ const ProductImageUpload: React.FC<ProductImageUploadProps> = ({
               strokeLinejoin="round"
             />
           </svg>
-          
+
           <div>
             <button
               type="button"
@@ -279,7 +340,7 @@ const ProductImageUpload: React.FC<ProductImageUploadProps> = ({
             </button>
             <span className="text-gray-600"> or drag and drop</span>
           </div>
-          
+
           <p className="text-sm text-gray-500">
             PNG, JPG, GIF, SVG, WEBP up to 2MB
           </p>
@@ -300,7 +361,7 @@ const ProductImageUpload: React.FC<ProductImageUploadProps> = ({
                   alt={`Preview ${index + 1}`}
                   className="w-full h-48 object-cover rounded-lg border"
                 />
-                
+
                 {/* Color indicator */}
                 {img.colorCode && (
                   <div
@@ -364,11 +425,11 @@ const ProductImageUpload: React.FC<ProductImageUploadProps> = ({
             {existingImages.map((img) => (
               <div key={img.id} className="relative group">
                 <img
-                  src={`http://127.0.0.1:8000/${img.image_url}`}
+                  src={`${API_STORAGE_URL}/${img.image_url}`}
                   alt="Product"
                   className="w-full h-48 object-cover rounded-lg border"
                 />
-                
+
                 {img.color_code && (
                   <div
                     className="absolute top-2 left-2 w-8 h-8 rounded-full border-2 border-white shadow"
@@ -412,11 +473,10 @@ const ProductImageUpload: React.FC<ProductImageUploadProps> = ({
           <button
             onClick={handleUpload}
             disabled={uploading}
-            className={`px-6 py-2 rounded-lg font-medium text-white ${
-              uploading
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-blue-600 hover:bg-blue-700'
-            }`}
+            className={`px-6 py-2 rounded-lg font-medium text-white ${uploading
+              ? 'bg-gray-400 cursor-not-allowed'
+              : 'bg-blue-600 hover:bg-blue-700'
+              }`}
           >
             {uploading ? 'Uploading...' : `Upload ${images.length} Image${images.length > 1 ? 's' : ''}`}
           </button>
