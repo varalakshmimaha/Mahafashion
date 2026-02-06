@@ -45,10 +45,24 @@ const StaticPageViewer: React.FC = () => {
   if (error) return <div className="container mx-auto p-4 text-red-500">{error}</div>;
   if (!page) return <div className="container mx-auto p-4">Page not found.</div>;
 
+  // Function to check if content looks like HTML
+  const isHtml = (text: string) => {
+    const trimmed = text.trim();
+    return trimmed.startsWith('<') && trimmed.endsWith('>');
+  };
+
   return (
     <div className="container mx-auto p-6">
       <h1 className="text-3xl font-bold mb-4">{page.title}</h1>
-      <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: page.content || '' }} />
+      {page.content && (
+        isHtml(page.content) ? (
+          <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: page.content }} />
+        ) : (
+          <div className="prose max-w-none whitespace-pre-wrap text-gray-700 leading-relaxed">
+            {page.content}
+          </div>
+        )
+      )}
     </div>
   );
 };

@@ -48,7 +48,7 @@ const StarRating: React.FC<{ rating: number; maxRating?: number; size?: number }
 const ProductInfo: React.FC<ProductInfoProps> = ({ product, selectedSize, selectedColor, onScrollToReviews }) => {
   // Dynamic Pricing Logic based on Variant or Size
   const priceData = useMemo(() => {
-    let basePrice = product.price; // Start with base price
+    let basePrice = product.price; // Start with base price (MRP)
     let finalPrice = product.discounted_price || product.final_price || product.price;
     let discountPercentage = product.discount || 0;
 
@@ -59,8 +59,26 @@ const ProductInfo: React.FC<ProductInfoProps> = ({ product, selectedSize, select
       );
 
       if (variant) {
-        // 1. Check if variant has size-specific price override (from admin panel size price field)
-        if (variant.price && variant.price > 0) {
+        // Priority 1: Use variant-specific MRP, price, and discount if available
+        if (variant.mrp && variant.mrp > 0) {
+          basePrice = variant.mrp;
+
+          // Check if variant has its own price (final price after discount)
+          if (variant.price && variant.price > 0) {
+            finalPrice = variant.price;
+          }
+
+          // Use variant-specific discount if available
+          if (variant.discount !== undefined && variant.discount !== null) {
+            discountPercentage = variant.discount;
+            // Recalculate final price based on variant discount
+            if (discountPercentage > 0 && (!variant.price || variant.price === 0)) {
+              finalPrice = basePrice - (basePrice * discountPercentage / 100);
+            }
+          }
+        }
+        // Priority 2: Check if variant has size-specific price override (from admin panel)
+        else if (variant.price && variant.price > 0) {
           // Variant has its own price - this is the final price for this size
           finalPrice = variant.price;
           // Calculate base price based on product's discount percentage
@@ -70,7 +88,7 @@ const ProductInfo: React.FC<ProductInfoProps> = ({ product, selectedSize, select
             basePrice = finalPrice;
           }
         }
-        // 2. Check for price adjustment (alternative pricing method)
+        // Priority 3: Check for price adjustment (alternative pricing method)
         else if (variant.price_adjustment) {
           const adjustment = Number(variant.price_adjustment) || 0;
           finalPrice = (product.discounted_price || product.price) + adjustment;

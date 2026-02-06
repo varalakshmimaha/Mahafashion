@@ -47,6 +47,8 @@ import AdminOrdersPage from './pages/AdminOrdersPage';
 import AdminOrderDetailPage from './pages/AdminOrderDetailPage';
 import AdminCustomersPage from './pages/AdminCustomersPage';
 import AdminCustomerDetailsPage from './pages/AdminCustomerDetailsPage';
+import AdminCustomerEditPage from './pages/AdminCustomerEditPage';
+import AdminShippingSettingsPage from './pages/AdminShippingSettingsPage';
 import OrderSuccessPage from './pages/OrderSuccessPage'; // Import order success page
 import ProductFiltersAdvanced from './components/product/ProductFiltersAdvanced'; // Import ProductFiltersAdvanced
 import StaticPageViewer from './pages/StaticPageViewer';
@@ -102,11 +104,14 @@ function App() {
                     <Route path="/admin/themes" element={<AdminThemeManagement />} /> {/* Theme management */}
                     <Route path="/admin/payment-settings" element={<AdminPaymentSettings />} /> {/* Payment settings */}
                     <Route path="/admin/payment-gateways" element={<AdminPaymentGatewaysPage />} /> {/* New Payment Gateways Management */}
+                    <Route path="/admin/shipping-settings" element={<AdminShippingSettingsPage />} /> {/* Shipping Configuration */}
                     <Route path="/admin/orders" element={<AdminOrdersPage />} />
                     <Route path="/admin/orders/:id" element={<AdminOrderDetailPage />} />
                     <Route path="/admin/customers" element={<AdminCustomersPage />} />
                     <Route path="/admin/customers/:id" element={<AdminCustomerDetailsPage />} />
+                    <Route path="/admin/customers/:id/edit" element={<AdminCustomerEditPage />} />
                     <Route path="/order-success" element={<OrderSuccessPage />} /> {/* Order success */}
+                    <Route path="/pages/:slug" element={<StaticPageViewer />} />
                     {/* Admin routes for static pages */}
                     <Route
                       path="/admin/about-us-content"

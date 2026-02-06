@@ -74,6 +74,12 @@ const AdminCustomerDetailsPage: React.FC = () => {
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => navigate(`/admin/customers/${id}/edit`)}
+                        className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors flex items-center gap-2"
+                    >
+                        <span>Edit Customer</span>
+                    </button>
                     <span className={`px-3 py-1 rounded-full text-sm font-semibold ${customer.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                         }`}>
                         {customer.is_active ? 'Active Account' : 'Suspended Account'}

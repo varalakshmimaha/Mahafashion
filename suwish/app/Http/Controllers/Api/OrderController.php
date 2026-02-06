@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Cart;
 use App\Models\Product;
+use App\Models\ShippingSetting;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Validator;
@@ -122,8 +123,8 @@ $userId = $user ? $user->id : null;
             $discount = $request->input('discount', 0);
             
             // Calculate shipping (free for orders above certain amount, or flat rate)
-            $shippingThreshold = 999; // Free shipping above ₹999
-            $shippingRate = 50; // ₹50 flat shipping
+            $shippingThreshold = ShippingSetting::where('key', 'free_shipping_threshold')->value('value') ?? 1000;
+            $shippingRate = ShippingSetting::where('key', 'shipping_fee')->value('value') ?? 99;
             $shipping = $subtotal >= $shippingThreshold ? 0 : $shippingRate;
             
             // Calculate tax (e.g., 18% GST - adjust as needed)

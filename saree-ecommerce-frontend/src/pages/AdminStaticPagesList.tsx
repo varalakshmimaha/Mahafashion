@@ -61,6 +61,8 @@ const AdminStaticPagesList: React.FC = () => {
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Slug</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
@@ -70,6 +72,12 @@ const AdminStaticPagesList: React.FC = () => {
                 <tr key={page.id}>
                   <td className="px-6 py-4 whitespace-nowrap">{page.title}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{page.slug}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 py-1 rounded-full text-xs ${page.category === 'policy' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                      {page.category === 'policy' ? 'Policy' : 'Quick Link'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{page.sort_order}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{page.status}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-right">
                     <button onClick={() => handleEdit(page)} className="mr-2 text-sm text-blue-600">Edit</button>

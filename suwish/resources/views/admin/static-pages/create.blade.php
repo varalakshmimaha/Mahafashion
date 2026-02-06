@@ -43,6 +43,30 @@
             </div>
 
             <div>
+                <label for="category" class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                <select name="category" id="category" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    <option value="quick_link" {{ old('category') == 'quick_link' ? 'selected' : '' }}>Quick Link</option>
+                    <option value="policy" {{ old('category') == 'policy' ? 'selected' : '' }}>Policy</option>
+                </select>
+                @error('category')
+                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                @enderror
+                <p class="mt-1 text-sm text-gray-500">Where should this page appear in the footer?</p>
+            </div>
+
+            <div>
+                <label for="status" class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <select name="status" id="status" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    <option value="draft" {{ old('status') == 'draft' ? 'selected' : '' }}>Draft</option>
+                    <option value="published" {{ old('status') == 'published' ? 'selected' : '' }}>Published</option>
+                </select>
+                @error('status')
+                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                @enderror
+                <p class="mt-1 text-sm text-gray-500">Set to Published to display on the website</p>
+            </div>
+
+            <div>
                 <label for="sort_order" class="block text-sm font-medium text-gray-700 mb-1">Sort Order</label>
                 <input type="number" name="sort_order" id="sort_order" value="{{ old('sort_order', 0) }}" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                 @error('sort_order')

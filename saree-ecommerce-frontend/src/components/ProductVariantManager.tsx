@@ -51,6 +51,8 @@ const ProductVariantManager: React.FC<ProductVariantManagerProps> = ({
     size: 'M',
     stock: 0,
     price: 0,
+    mrp: 0,
+    discount: 0,
     price_adjustment: 0,
     sku: ''
   });
@@ -86,6 +88,8 @@ const ProductVariantManager: React.FC<ProductVariantManagerProps> = ({
       size: 'M',
       stock: 0,
       price: 0,
+      mrp: 0,
+      discount: 0,
       price_adjustment: 0,
       sku: ''
     });
@@ -283,10 +287,43 @@ const ProductVariantManager: React.FC<ProductVariantManagerProps> = ({
             />
           </div>
 
-          {/* Price */}
+          {/* MRP */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Price (₹)
+              MRP (₹) *
+            </label>
+            <input
+              type="number"
+              value={newVariant.mrp}
+              onChange={(e) => setNewVariant({ ...newVariant, mrp: parseFloat(e.target.value) || 0 })}
+              className="w-full px-3 py-2 border rounded"
+              min="0"
+              step="0.01"
+              placeholder="Maximum Retail Price"
+            />
+          </div>
+
+          {/* Discount */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Discount (%)
+            </label>
+            <input
+              type="number"
+              value={newVariant.discount}
+              onChange={(e) => setNewVariant({ ...newVariant, discount: parseFloat(e.target.value) || 0 })}
+              className="w-full px-3 py-2 border rounded"
+              min="0"
+              max="100"
+              step="0.01"
+              placeholder="e.g., 10 for 10% off"
+            />
+          </div>
+
+          {/* Final Price */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Final Price (₹)
             </label>
             <input
               type="number"
@@ -295,21 +332,7 @@ const ProductVariantManager: React.FC<ProductVariantManagerProps> = ({
               className="w-full px-3 py-2 border rounded"
               min="0"
               step="0.01"
-              placeholder="Optional Override"
-            />
-          </div>
-
-          {/* Price Adjustment */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Price Adjustment (Old)
-            </label>
-            <input
-              type="number"
-              value={newVariant.price_adjustment}
-              onChange={(e) => setNewVariant({ ...newVariant, price_adjustment: parseFloat(e.target.value) || 0 })}
-              className="w-full px-3 py-2 border rounded"
-              step="0.01"
+              placeholder="Selling Price (after discount)"
             />
           </div>
 
@@ -352,8 +375,9 @@ const ProductVariantManager: React.FC<ProductVariantManagerProps> = ({
                   <th className="border px-4 py-2 text-left">Color</th>
                   <th className="border px-4 py-2 text-left">Size</th>
                   <th className="border px-4 py-2 text-right">Stock</th>
-                  <th className="border px-4 py-2 text-right">Price</th>
-                  <th className="border px-4 py-2 text-right">Price Adj.</th>
+                  <th className="border px-4 py-2 text-right">MRP</th>
+                  <th className="border px-4 py-2 text-right">Discount %</th>
+                  <th className="border px-4 py-2 text-right">Final Price</th>
                   <th className="border px-4 py-2 text-left">SKU</th>
                   <th className="border px-4 py-2 text-center">Actions</th>
                 </tr>
@@ -421,6 +445,34 @@ const ProductVariantManager: React.FC<ProductVariantManagerProps> = ({
                       {editingId === variant.id ? (
                         <input
                           type="number"
+                          value={variant.mrp || 0}
+                          onChange={(e) => handleUpdateVariant(index, 'mrp', parseFloat(e.target.value) || 0)}
+                          className="w-24 px-2 py-1 border rounded text-sm text-right"
+                          step="0.01"
+                        />
+                      ) : (
+                        variant.mrp ? `₹${Number(variant.mrp).toFixed(2)}` : '-'
+                      )}
+                    </td>
+                    <td className="border px-4 py-2 text-right">
+                      {editingId === variant.id ? (
+                        <input
+                          type="number"
+                          value={variant.discount || 0}
+                          onChange={(e) => handleUpdateVariant(index, 'discount', parseFloat(e.target.value) || 0)}
+                          className="w-20 px-2 py-1 border rounded text-sm text-right"
+                          min="0"
+                          max="100"
+                          step="0.01"
+                        />
+                      ) : (
+                        variant.discount ? `${variant.discount}%` : '-'
+                      )}
+                    </td>
+                    <td className="border px-4 py-2 text-right">
+                      {editingId === variant.id ? (
+                        <input
+                          type="number"
                           value={variant.price || 0}
                           onChange={(e) => handleUpdateVariant(index, 'price', parseFloat(e.target.value) || 0)}
                           className="w-24 px-2 py-1 border rounded text-sm text-right"
@@ -428,19 +480,6 @@ const ProductVariantManager: React.FC<ProductVariantManagerProps> = ({
                         />
                       ) : (
                         variant.price ? `₹${Number(variant.price).toFixed(2)}` : '-'
-                      )}
-                    </td>
-                    <td className="border px-4 py-2 text-right">
-                      {editingId === variant.id ? (
-                        <input
-                          type="number"
-                          value={variant.price_adjustment}
-                          onChange={(e) => handleUpdateVariant(index, 'price_adjustment', parseFloat(e.target.value) || 0)}
-                          className="w-24 px-2 py-1 border rounded text-sm text-right"
-                          step="0.01"
-                        />
-                      ) : (
-                        `₹${variant.price_adjustment.toFixed(2)}`
                       )}
                     </td>
                     <td className="border px-4 py-2 text-sm text-gray-600">

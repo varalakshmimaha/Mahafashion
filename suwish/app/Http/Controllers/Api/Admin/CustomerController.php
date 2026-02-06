@@ -87,4 +87,39 @@ class CustomerController extends Controller
             'message' => 'Customer status updated successfully.'
         ]);
     }
+
+    /**
+     * Update the specified customer in storage.
+     */
+    public function update(Request $request, int $id): JsonResponse
+    {
+        $customer = User::findOrFail($id);
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email,' . $id,
+            'phone' => 'required|string|max:20',
+            'password' => 'nullable|string|min:6|confirmed',
+            'is_active' => 'boolean'
+        ]);
+
+        $customer->name = $validated['name'];
+        $customer->email = $validated['email'];
+        $customer->phone = $validated['phone'];
+        
+        if (!empty($validated['password'])) {
+            $customer->password = \Illuminate\Support\Facades\Hash::make($validated['password']);
+        }
+        
+        if (isset($validated['is_active'])) {
+             $customer->is_active = $validated['is_active'];
+        }
+
+        $customer->save();
+
+        return response()->json([
+            'message' => 'Customer updated successfully',
+            'customer' => $customer
+        ]);
+    }
 }

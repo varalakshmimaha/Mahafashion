@@ -59,23 +59,54 @@ const CartItem: React.FC<CartItemProps> = ({ item }) => {
     // Determine the effective price based on selected size/variant
     // 1. Prefer stored price (from cart DB/storage) if available - fixes discount/variant pricing issues
     // 2. Fallback to calculating from product price + variants
-    let basePrice = item.price || item.product.price;
-    let finalPrice = item.price
-        ? item.price
-        : (item.product.final_price || calculateDiscountedPrice(item.product.price, item.product.discount || 0));
+    // Determine pricing values
+    let finalPrice = item.price || item.product.final_price || item.product.price;
+    let mrp = item.product.price;
+    let discount = item.product.discount || 0;
 
-    // If NO stored price, and size is selected, check for size-specific price in variants
-    if (!item.price && item.selectedSize && item.product.variants && item.product.variants.length > 0) {
-        // Find variant matching size AND color (if color is selected), or just size (for standalone sizes)
+    // Use snapshot values from cart if available (for precise variant pricing)
+    if (item.variantMrp && item.variantMrp > 0) {
+        mrp = item.variantMrp;
+
+        // If we have a variant discount, use it
+        if (item.variantDiscount !== undefined && item.variantDiscount !== null) {
+            discount = item.variantDiscount;
+        }
+        // Otherwise calculate it if we have both prices
+        else if (item.variantPrice && item.variantPrice > 0) {
+            discount = Math.round(((mrp - item.variantPrice) / mrp) * 100);
+        }
+    }
+    // Fallback: If NO stored snapshot, check for size-specific price in variants (legacy support/guest cart)
+    else if (!item.price && item.selectedSize && item.product.variants && item.product.variants.length > 0) {
+        // Find variant matching size AND color
         const relevantVariant = item.product.variants.find(v =>
             v.size === item.selectedSize &&
             (!item.selectedColor || !v.color_code || v.color_code === '#' || v.color_code === item.selectedColor || v.color_name === item.selectedColor)
         );
 
-        if (relevantVariant && relevantVariant.price && relevantVariant.price > 0) {
-            basePrice = relevantVariant.price;
-            // Recalculate final price with discount applied to the VARIANT price
-            finalPrice = calculateDiscountedPrice(basePrice, item.product.discount || 0);
+        if (relevantVariant) {
+            if (relevantVariant.price && relevantVariant.price > 0) {
+                // Use variant price
+                finalPrice = relevantVariant.price;
+
+                // Use variant MRP if available
+                if (relevantVariant.mrp && relevantVariant.mrp > 0) {
+                    mrp = relevantVariant.mrp;
+                    discount = relevantVariant.discount || Math.round(((mrp - finalPrice) / mrp) * 100);
+                } else {
+                    // Fallback to recalculate discount based on product percentage
+                    // effective MRP = finalPrice / (1 - discount%)
+                    const productDiscount = item.product.discount || 0;
+                    if (productDiscount > 0) {
+                        mrp = finalPrice / (1 - (productDiscount / 100));
+                        discount = productDiscount;
+                    } else {
+                        mrp = finalPrice;
+                        discount = 0;
+                    }
+                }
+            }
         }
     }
 
@@ -136,14 +167,14 @@ const CartItem: React.FC<CartItemProps> = ({ item }) => {
                     <span className="text-lg md:text-xl font-extrabold text-gray-900">
                         ₹{itemPrice.toLocaleString()}
                     </span>
-                    {(item.product.discount && item.product.discount > 0) || (item.product.price > itemPrice) ? (
+                    {(discount > 0) || (mrp > itemPrice) ? (
                         <>
                             <span className="text-sm text-gray-400 line-through">
-                                ₹{item.product.price.toLocaleString()}
+                                ₹{Math.round(mrp).toLocaleString()}
                             </span>
                             <span className="text-xs md:text-sm text-green-600 font-bold bg-green-50 px-1.5 py-0.5 rounded">
-                                Save ₹{(item.product.price - itemPrice).toLocaleString()}
-                                {item.product.discount ? ` (${item.product.discount}%)` : ''}
+                                Save ₹{Math.round(mrp - itemPrice).toLocaleString()}
+                                {discount > 0 ? ` (${discount}%)` : ''}
                             </span>
                         </>
                     ) : null}

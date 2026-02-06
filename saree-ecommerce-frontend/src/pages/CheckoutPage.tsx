@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
-import { paymentAPI, orderAPI, API_STORAGE_URL } from '../services/api';
+import { paymentAPI, orderAPI, shippingSettingsAPI, API_STORAGE_URL } from '../services/api';
 import getImageUrl, { PLACEHOLDER_DATA_URI } from '../utils/getImageUrl';
 import {
   ShoppingBag,
@@ -64,6 +64,7 @@ const CheckoutPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [loadingMethods, setLoadingMethods] = useState(true);
   const [availablePaymentMethods, setAvailablePaymentMethods] = useState<PaymentGatewayPublic[]>([]);
+  const [shippingSettings, setShippingSettings] = useState<any>(null);
   const [shippingAddress, setShippingAddress] = useState({
     fullName: user?.shipping_name || user?.name || '',
     email: user?.email || '',
@@ -184,6 +185,10 @@ const CheckoutPage: React.FC = () => {
 
   useEffect(() => {
     fetchPaymentMethods();
+    // Fetch shipping settings
+    shippingSettingsAPI.get()
+      .then(data => setShippingSettings(data))
+      .catch(err => console.error('Failed to load shipping settings', err));
   }, [fetchPaymentMethods]);
 
   // Set default payment method when methods are loaded
@@ -221,7 +226,9 @@ const CheckoutPage: React.FC = () => {
 
   const calculateShipping = () => {
     const total = getCartTotalSellingPrice();
-    return total > 1000 ? 0 : 99;
+    const threshold = shippingSettings ? Number(shippingSettings.free_shipping_threshold) : 1000;
+    const fee = shippingSettings ? Number(shippingSettings.shipping_fee) : 99;
+    return total > threshold ? 0 : fee;
   };
 
   const calculateTotal = () => {
@@ -503,23 +510,40 @@ const CheckoutPage: React.FC = () => {
                           </div>
                           <div className="flex flex-col gap-1">
                             {/* Logic to determine if there is a discount */}
-                            {(item.product.discount && item.product.discount > 0) || (item.product.final_price && item.product.final_price < item.product.price) ? (
-                              <>
-                                <div className="flex items-baseline gap-2">
-                                  <span className="font-bold text-gray-900">
-                                    ₹{(item.product.final_price || Math.round(item.product.price * (1 - (item.product.discount || 0) / 100))).toLocaleString()}
-                                  </span>
-                                  <span className="text-xs text-gray-400 line-through">
-                                    ₹{item.product.price.toLocaleString()}
-                                  </span>
-                                </div>
-                                <p className="text-xs text-green-600 font-medium">
-                                  Discount: –₹{(item.product.price - (item.product.final_price || Math.round(item.product.price * (1 - (item.product.discount || 0) / 100)))).toLocaleString()}
-                                </p>
-                              </>
-                            ) : (
-                              <p className="font-bold text-gray-900">₹{item.product.price.toLocaleString()}</p>
-                            )}
+                            {(() => {
+                              // Calculate display values
+                              let displayPrice = item.price || item.product.final_price || item.product.price;
+                              let displayMrp = item.product.price;
+
+                              // Use variant info if available
+                              if (item.variantMrp && item.variantMrp > 0) {
+                                displayMrp = item.variantMrp;
+                              } else if (item.product.discount && item.product.discount > 0) {
+                                // Fallback: If no variant MRP but we have product discount, calculate base price
+                                // This handles cases where we might have price but no MRP
+                              }
+
+                              const hasDiscount = displayMrp > displayPrice;
+
+                              return hasDiscount ? (
+                                <>
+                                  <div className="flex items-baseline gap-2">
+                                    <span className="font-bold text-gray-900">
+                                      ₹{displayPrice.toLocaleString()}
+                                    </span>
+                                    <span className="text-xs text-gray-400 line-through">
+                                      ₹{displayMrp.toLocaleString()}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-green-600 font-medium">
+                                    {/* Show discount amount */}
+                                    Discount: –₹{(displayMrp - displayPrice).toLocaleString()}
+                                  </p>
+                                </>
+                              ) : (
+                                <p className="font-bold text-gray-900">₹{displayPrice.toLocaleString()}</p>
+                              );
+                            })()}
                           </div>
                           <div className="flex items-center gap-4 mt-4">
                             <div className="flex items-center border border-gray-200 rounded-lg">
@@ -528,7 +552,7 @@ const CheckoutPage: React.FC = () => {
                               <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="p-2 hover:bg-gray-50 text-gray-600"><Plus size={14} /></button>
                             </div>
                             <span className="font-bold text-gray-900">
-                              ₹{((item.product.final_price || Math.round(item.product.price * (1 - (item.product.discount || 0) / 100))) * item.quantity).toLocaleString()}
+                              ₹{((item.price || item.product.final_price || item.product.price) * item.quantity).toLocaleString()}
                             </span>
                           </div>
                         </div>
@@ -730,7 +754,7 @@ const CheckoutPage: React.FC = () => {
                 </div>
               </div>
               <div className="mt-8 space-y-4">
-                <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl"><Truck className="text-maroon-600 mt-1" size={20} /><div><p className="text-sm font-bold text-gray-900">Express Delivery</p><p className="text-xs text-gray-500">Ships in 24-48 hours</p></div></div>
+                <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl"><Truck className="text-maroon-600 mt-1" size={20} /><div><p className="text-sm font-bold text-gray-900">{shippingSettings?.express_delivery_label || 'Express Delivery'}</p><p className="text-xs text-gray-500">{shippingSettings?.express_delivery_subtitle || 'Ships in 24-48 hours'}</p></div></div>
                 <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl"><ShieldCheck className="text-maroon-600 mt-1" size={20} /><div><p className="text-sm font-bold text-gray-900">Direct from weavers</p><p className="text-xs text-gray-500">100% Authentic Sarees</p></div></div>
               </div>
             </div>

@@ -36,6 +36,8 @@ class StaticPageController extends Controller
             'title' => 'required|string|max:255',
             'content' => 'required|string',
             'sort_order' => 'nullable|integer',
+            'category' => 'nullable|string|in:quick_link,policy',
+            'status' => 'nullable|string|in:draft,published', // Validate status
         ]);
 
         if ($validator->fails()) {
@@ -47,12 +49,13 @@ class StaticPageController extends Controller
 
         StaticPage::create([
             'name' => $request->name,
-            'slug' => $slug, // Ensure slug is populated
+            'slug' => $slug,
             'title' => $request->title,
             'content' => $request->content,
-            'status' => 'published', // Default to published
+            'status' => $request->status ?? 'published', // Use requested status or default
             'sort_order' => $request->sort_order ?? 0,
-            'meta_title' => $request->title, // Default metadata
+            'category' => $request->category ?? 'quick_link',
+            'meta_title' => $request->title,
             'meta_description' => \Illuminate\Support\Str::limit(strip_tags($request->content), 160),
         ]);
 
@@ -88,6 +91,8 @@ class StaticPageController extends Controller
             'title' => 'required|string|max:255',
             'content' => 'required|string',
             'sort_order' => 'nullable|integer',
+            'category' => 'nullable|string|in:quick_link,policy',
+            'status' => 'nullable|string|in:draft,published', // Validate status
         ]);
 
         if ($validator->fails()) {
@@ -98,9 +103,8 @@ class StaticPageController extends Controller
             'title' => $request->title,
             'content' => $request->content,
             'sort_order' => $request->sort_order ?? 0,
-            // Optimization: If name/slug editing is allowed, update it here.
-            // For now, assuming name is constant after creation or handled separately.
-            // Updating metadata if needed:
+            'category' => $request->category ?? 'quick_link',
+            'status' => $request->status ?? $page->status, // Update status
             'meta_title' => $request->title,
             'meta_description' => \Illuminate\Support\Str::limit(strip_tags($request->content), 160),
         ]);

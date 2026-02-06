@@ -15,12 +15,22 @@ class StaticPageController extends Controller
         return response()->json($pages);
     }
 
+    // Public: list all published static pages
+    public function publicIndex()
+    {
+        $pages = StaticPage::where('status', 'published')
+            ->orderBy('sort_order', 'asc')
+            ->get(['title', 'slug', 'category']);
+        return response()->json($pages);
+    }
+
     // Admin: create a new static page
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|unique:static_pages,name|max:255',
             'slug' => 'required|string|unique:static_pages,slug|max:255',
+            'category' => 'nullable|string|in:quick_link,policy',
             'title' => 'required|string|max:255',
             'content' => 'nullable|string',
             'meta_title' => 'nullable|string|max:255',
@@ -36,6 +46,7 @@ class StaticPageController extends Controller
         $page = StaticPage::create([
             'name' => $request->name,
             'slug' => $request->slug,
+            'category' => $request->category ?? 'quick_link',
             'title' => $request->title,
             'content' => $request->content,
             'meta_title' => $request->meta_title,
@@ -84,6 +95,7 @@ class StaticPageController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => 'nullable|string|unique:static_pages,name,' . $page->id,
             'slug' => 'nullable|string|unique:static_pages,slug,' . $page->id,
+            'category' => 'nullable|string|in:quick_link,policy',
             'title' => 'nullable|string|max:255',
             'content' => 'nullable|string',
             'meta_title' => 'nullable|string|max:255',
@@ -96,9 +108,23 @@ class StaticPageController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $data = $request->only(['name', 'slug', 'title', 'content', 'meta_title', 'meta_description', 'status', 'sort_order']);
+        $data = $request->only(['name', 'slug', 'category', 'title', 'content', 'meta_title', 'meta_description', 'status', 'sort_order']);
         $page->fill(array_filter($data, function ($v) { return $v !== null; }));
         $page->save();
+
+        return response()->json($page);
+    }
+
+    /**
+     * Admin: Display the specified static page (all fields, no status check).
+     */
+    public function adminShow(string $slug)
+    {
+        $page = StaticPage::where('slug', $slug)->first();
+
+        if (!$page) {
+            return response()->json(['message' => 'Page not found'], 404);
+        }
 
         return response()->json($page);
     }

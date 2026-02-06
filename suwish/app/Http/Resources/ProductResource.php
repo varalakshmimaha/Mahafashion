@@ -192,7 +192,10 @@ class ProductResource extends JsonResource
                 'size' => $variant->size,
                 'stock' => (int) $variant->stock,
                 'price' => $variant->price ? (float) $variant->price : null, // Size-specific price override
+                'mrp' => $variant->mrp ? (float) $variant->mrp : null,
+                'discount' => $variant->discount ? (float) $variant->discount : null,
                 'price_adjustment' => $variant->price_adjustment ? (float) $variant->price_adjustment : 0,
+                'sku' => $variant->sku,
                 'images' => $colorImages, // Images for this color variant
             ];
         });

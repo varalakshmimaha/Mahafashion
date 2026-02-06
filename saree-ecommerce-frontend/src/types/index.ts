@@ -51,6 +51,8 @@ export interface ProductVariant {
   size: string;
   stock: number;
   price?: number;
+  mrp?: number;
+  discount?: number;
   price_adjustment: number;
   sku: string | null;
   images?: string[]; // Images for this color variant
@@ -105,6 +107,10 @@ export interface CartItem {
   selectedSize?: string;
   blouseOption: string;
   price?: number;
+  variantId?: number;
+  variantPrice?: number;
+  variantMrp?: number;
+  variantDiscount?: number;
 }
 
 export interface FilterState {
@@ -115,18 +121,22 @@ export interface FilterState {
   sortBy: 'price-low-high' | 'price-high-low' | 'newest';
 }
 
-id: string;
-name: string;
-email: string;
-phone ?: string;
-is_admin ?: boolean;
-addresses: Address[];
-shipping_name ?: string;
-shipping_phone ?: string;
-shipping_address ?: string;
-shipping_city ?: string;
-shipping_state ?: string;
-shipping_pincode ?: string;
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  is_admin?: boolean;
+  addresses: Address[];
+  shipping_name?: string;
+  shipping_phone?: string;
+  shipping_address?: string;
+  shipping_city?: string;
+  shipping_state?: string;
+  shipping_pincode?: string;
+  receive_email_notifications?: boolean;
+  receive_sms_notifications?: boolean;
+  date_of_birth?: string;
 }
 
 export interface Address {

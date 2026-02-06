@@ -82,6 +82,10 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
             selectedSize: item.selected_size || '',
             blouseOption: item.blouse_option || '',
             price: Number(item.price) || 0,
+            variantId: item.variant_id || undefined,
+            variantPrice: item.variant_price ? Number(item.variant_price) : undefined,
+            variantMrp: item.variant_mrp ? Number(item.variant_mrp) : undefined,
+            variantDiscount: item.variant_discount ? Number(item.variant_discount) : undefined,
           }));
         setCartItems(transformedItems);
       } catch (error) {
@@ -375,8 +379,9 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
 
   const getCartTotalMRP = () => {
     return cartItems.reduce((total, item) => {
-      // price is MRP
-      return total + (item.product.price || 0) * item.quantity;
+      // Use variant MRP if available, otherwise product price
+      const itemMrp = item.variantMrp || item.product.price || 0;
+      return total + itemMrp * item.quantity;
     }, 0);
   };
 

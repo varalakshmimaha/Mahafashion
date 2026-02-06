@@ -29,10 +29,16 @@ const ShippingAndReturnsPage: React.FC = () => {
   if (loading) return <div className="container mx-auto px-4 py-8">Loading Return and Refund Policy...</div>;
   if (error) return <div className="container mx-auto px-4 py-8 text-red-500">Error: {error}</div>;
 
+  // Function to check if content looks like HTML
+  const isHtml = (text: string) => {
+    const trimmed = text.trim();
+    return trimmed.startsWith('<') && trimmed.endsWith('>');
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-4">Shipping & Returns</h1>
-      
+
       <div className="mb-12">
         <h2 className="text-2xl font-bold mb-6 text-gray-800">Shipping Information</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -45,7 +51,7 @@ const ShippingAndReturnsPage: React.FC = () => {
             <h3 className="font-semibold text-lg mb-2">Free Shipping</h3>
             <p className="text-gray-600">Free shipping on orders above ₹999</p>
           </div>
-          
+
           <div className="bg-gray-50 p-6 rounded-lg text-center">
             <div className="text-green-600 mb-3">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -55,7 +61,7 @@ const ShippingAndReturnsPage: React.FC = () => {
             <h3 className="font-semibold text-lg mb-2">Easy Returns</h3>
             <p className="text-gray-600">Easy 7-day returns</p>
           </div>
-          
+
           <div className="bg-gray-50 p-6 rounded-lg text-center">
             <div className="text-green-600 mb-3">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -67,10 +73,18 @@ const ShippingAndReturnsPage: React.FC = () => {
           </div>
         </div>
       </div>
-      
+
       <div>
         <h2 className="text-2xl font-bold mb-4 text-gray-800">Return and Refund Policy</h2>
-        <div className="prose lg:prose-xl" dangerouslySetInnerHTML={{ __html: content }}></div>
+        {content && (
+          isHtml(content) ? (
+            <div className="prose lg:prose-xl" dangerouslySetInnerHTML={{ __html: content }}></div>
+          ) : (
+            <div className="prose lg:prose-xl whitespace-pre-wrap text-gray-700 leading-relaxed">
+              {content}
+            </div>
+          )
+        )}
       </div>
     </div>
   );

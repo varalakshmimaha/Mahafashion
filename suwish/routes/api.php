@@ -36,7 +36,8 @@ Route::get('categories/{categorySlug}/subcategories/{subcategorySlug}/products',
 Route::get('categories-with-subcategories', [App\Http\Controllers\Api\CategoriesSubcategoriesController::class, 'getMenuStructure']);
 Route::get('subcategories/by-category/{categoryId}', [App\Http\Controllers\Api\CategoriesSubcategoriesController::class, 'getSubcategoriesByCategoryId']);
 
-// Static pages public show route
+// Static pages public routes
+Route::get('static-pages', [App\Http\Controllers\Api\StaticPageController::class, 'publicIndex']);
 Route::get('static-pages/{slug}', [App\Http\Controllers\Api\StaticPageController::class, 'show']);
 // Banners public route
 Route::get('banners', [App\Http\Controllers\Api\BannerController::class, 'indexPublic']);
@@ -59,6 +60,9 @@ Route::get('checkout/payment-methods', [App\Http\Controllers\Api\CheckoutControl
 
 // Social Media Links (Public)
 Route::get('social-media-links', [App\Http\Controllers\Admin\SocialMediaLinkController::class, 'index']);
+
+// Shipping Settings (Public)
+Route::get('shipping-settings', [App\Http\Controllers\Api\Admin\ShippingSettingsController::class, 'index']);
 
 // Auth routes
 Route::post('login', [App\Http\Controllers\Api\AuthController::class, 'login']);
@@ -122,8 +126,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('admin/customers')->group(function () {
         Route::get('/', [App\Http\Controllers\Api\Admin\CustomerController::class, 'index']);
         Route::get('/{id}', [App\Http\Controllers\Api\Admin\CustomerController::class, 'show']);
+        Route::put('/{id}', [App\Http\Controllers\Api\Admin\CustomerController::class, 'update']);
         Route::post('/{id}/toggle-status', [App\Http\Controllers\Api\Admin\CustomerController::class, 'toggleStatus']);
     });
+
+    // Admin Shipping Settings Update
+    Route::post('admin/shipping-settings', [App\Http\Controllers\Api\Admin\ShippingSettingsController::class, 'update']);
+
     // Profile update and change password endpoints
     Route::put('/user', [App\Http\Controllers\Api\AuthController::class, 'updateProfile']);
     Route::post('/user/change-password', [App\Http\Controllers\Api\AuthController::class, 'changePassword']);
@@ -159,7 +168,9 @@ Route::middleware('auth:sanctum')->group(function () {
     
     // Static pages protected update route
     // Admin CRUD for static pages (index, store, update, destroy)
-    Route::apiResource('static-pages', App\Http\Controllers\Api\StaticPageController::class)->except(['show']);
+    Route::get('admin/static-pages/{slug}', [App\Http\Controllers\Api\StaticPageController::class, 'adminShow']);
+    Route::get('admin/static-pages', [App\Http\Controllers\Api\StaticPageController::class, 'index']);
+    Route::apiResource('static-pages', App\Http\Controllers\Api\StaticPageController::class)->except(['show', 'index']);
 
     // Payment Gateway Management (New)
     Route::get('admin/payment-gateways', [App\Http\Controllers\Api\PaymentGatewayController::class, 'index']);

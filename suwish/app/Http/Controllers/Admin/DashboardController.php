@@ -17,8 +17,8 @@ class DashboardController extends Controller
         $totalOrders = \App\Models\Order::count();
         $totalUsers = \App\Models\User::count();
         
-        // Calculate revenue - sum of completed orders
-        $totalRevenue = \App\Models\Order::where('status', 'completed')
+        // Calculate revenue - sum of all paid orders (regardless of fulfillment status)
+        $totalRevenue = \App\Models\Order::where('payment_status', 'paid')
             ->sum('total');
         
         // Get recent orders
@@ -67,7 +67,7 @@ class DashboardController extends Controller
                     DB::raw('sum(total) as total_sales'),
                     DB::raw("DATE_FORMAT(created_at, '%b') as month")
                 )
-                ->where('status', 'completed')
+                ->where('payment_status', 'paid')
                 ->where('created_at', '>=', Carbon::now()->subMonths(6))
                 ->groupBy('month')
                 ->orderBy('created_at', 'asc')
@@ -93,7 +93,7 @@ class DashboardController extends Controller
                         ELSE 'Unknown'
                     END as month")
                 )
-                ->where('status', 'completed')
+                ->where('payment_status', 'paid')
                 ->where('created_at', '>=', Carbon::now()->subMonths(6))
                 ->groupBy('month_num')
                 ->orderBy('month_num', 'asc')

@@ -549,6 +549,8 @@ class ProductController extends Controller
             'variants.*.size' => 'required|string|max:20',
             'variants.*.stock' => 'required|integer|min:0',
             'variants.*.price' => 'nullable|numeric|min:0',
+            'variants.*.mrp' => 'nullable|numeric|min:0',
+            'variants.*.discount' => 'nullable|numeric|min:0|max:100',
             'variants.*.price_adjustment' => 'nullable|numeric',
             'variants.*.sku' => 'nullable|string|max:100|unique:product_variants,sku',
         ]);
@@ -570,6 +572,8 @@ class ProductController extends Controller
                     'color_name' => $variantData['color_name'],
                     'stock' => $variantData['stock'],
                     'price' => $variantData['price'] ?? 0,
+                    'mrp' => $variantData['mrp'] ?? 0,
+                    'discount' => $variantData['discount'] ?? 0,
                     'price_adjustment' => $variantData['price_adjustment'] ?? 0,
                     'sku' => $variantData['sku'] ?? null,
                 ]

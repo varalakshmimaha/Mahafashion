@@ -45,6 +45,7 @@ class CartController extends Controller
             'selected_color' => 'nullable|string',
             'selected_size' => 'nullable|string',
             'blouse_option' => 'nullable|string',
+            'variant_id' => 'nullable|exists:product_variants,id',
         ]);
         
         if ($validator->fails()) {
@@ -52,6 +53,26 @@ class CartController extends Controller
         }
         
         $product = Product::find($request->product_id);
+        
+        // Find variant if color and size are provided
+        $variant = null;
+        $variantPrice = $request->price;
+        $variantMrp = null;
+        $variantDiscount = null;
+        
+        if ($request->selected_color && $request->selected_size) {
+            $variant = \App\Models\ProductVariant::where('product_id', $request->product_id)
+                ->where('color_code', $request->selected_color)
+                ->where('size', $request->selected_size)
+                ->first();
+            
+            if ($variant) {
+                // Use variant-specific pricing if available
+                $variantPrice = $variant->price ?? $product->price;
+                $variantMrp = $variant->mrp ?? $product->price;
+                $variantDiscount = $variant->discount ?? $product->discount;
+            }
+        }
         
         $existingCartItem = Cart::where('user_id', Auth::id())
                                 ->where('product_id', $request->product_id)
@@ -72,8 +93,12 @@ class CartController extends Controller
             $cartItem = Cart::create([
                 'user_id' => Auth::id(),
                 'product_id' => $request->product_id,
+                'variant_id' => $variant?->id,
                 'quantity' => $request->quantity,
                 'price' => $request->price,
+                'variant_price' => $variantPrice,
+                'variant_mrp' => $variantMrp,
+                'variant_discount' => $variantDiscount,
                 'selected_color' => $request->selected_color ?? '',
                 'selected_size' => $request->selected_size ?? '',
                 'blouse_option' => $request->blouse_option ?? '',

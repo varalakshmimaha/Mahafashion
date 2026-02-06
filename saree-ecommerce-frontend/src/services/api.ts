@@ -1363,9 +1363,23 @@ export const staticPageAPI = {
     return await response.json();
   },
 
+  // Get content for a specific static page (admin)
+  getAdmin: async (name: string) => {
+    const response = await fetch(`${API_BASE_URL}/admin/static-pages/${name}`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return await response.json();
+  },
+
   // List all static pages (admin)
   list: async () => {
-    const response = await fetch(`${API_BASE_URL}/static-pages`, {
+    const response = await fetch(`${API_BASE_URL}/admin/static-pages`, {
       method: 'GET',
       headers: getAuthHeaders(),
     });
@@ -1373,6 +1387,20 @@ export const staticPageAPI = {
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
       throw new Error(err?.message || `HTTP error! status: ${response.status}`);
+    }
+
+    return await response.json();
+  },
+
+  // List published static pages (public)
+  listPublic: async () => {
+    const response = await fetch(`${API_BASE_URL}/static-pages`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
 
     return await response.json();
@@ -1687,6 +1715,22 @@ export const customerAPI = {
 
     return await response.json();
   },
+
+  // Update customer
+  update: async (id: string | number, data: any) => {
+    const response = await fetch(`${API_BASE_URL}/admin/customers/${id}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err?.message || `HTTP error! status: ${response.status}`);
+    }
+
+    return await response.json();
+  },
 };
 
 
@@ -1734,6 +1778,29 @@ export const socialMediaAPI = {
       body: JSON.stringify({ orders }),
     });
     if (!response.ok) throw new Error('Failed to reorder links');
+    return await response.json();
+  }
+};
+
+export const shippingSettingsAPI = {
+  get: async () => {
+    const response = await fetch(`${API_BASE_URL}/shipping-settings`, {
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
+    });
+    if (!response.ok) throw new Error('Failed to fetch shipping settings');
+    return await response.json();
+  },
+
+  update: async (data: any) => {
+    const response = await fetch(`${API_BASE_URL}/admin/shipping-settings`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) throw new Error('Failed to update shipping settings');
     return await response.json();
   }
 };

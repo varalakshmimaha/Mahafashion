@@ -29,10 +29,24 @@ const TermsAndConditionsPage: React.FC = () => {
   if (loading) return <div className="container mx-auto px-4 py-8">Loading Terms and Conditions...</div>;
   if (error) return <div className="container mx-auto px-4 py-8 text-red-500">Error: {error}</div>;
 
+  // Function to check if content looks like HTML
+  const isHtml = (text: string) => {
+    const trimmed = text.trim();
+    return trimmed.startsWith('<') && trimmed.endsWith('>');
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-4">Terms and Conditions</h1>
-      <div className="prose lg:prose-xl" dangerouslySetInnerHTML={{ __html: content }}></div>
+      {content && (
+        isHtml(content) ? (
+          <div className="prose lg:prose-xl" dangerouslySetInnerHTML={{ __html: content }}></div>
+        ) : (
+          <div className="prose lg:prose-xl whitespace-pre-wrap text-gray-700 leading-relaxed">
+            {content}
+          </div>
+        )
+      )}
     </div>
   );
 };
