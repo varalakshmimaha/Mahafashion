@@ -124,7 +124,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         </div>
 
         {/* Discount Badge */}
-        {product.discount && product.discount > 0 && (
+        {(product.discount || 0) > 0 && (
           <div className="absolute top-3 left-3 bg-red-600 text-white text-xs font-bold px-2 py-1 rounded">
             {product.discount}% OFF
           </div>

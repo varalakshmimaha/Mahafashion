@@ -18,7 +18,7 @@ const ProductsPage = () => {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [categories, setCategories] = useState<CategoryType[]>([]);
-  const [subcategories, setSubcategories] = useState<any[]>([]);
+  // const [subcategories, setSubcategories] = useState<any[]>([]); // Removed unused state
   const [totalPages, setTotalPages] = useState(1);
   const [totalProducts, setTotalProducts] = useState(0);
 
@@ -53,21 +53,21 @@ const ProductsPage = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        
+
         // Fetch categories
         const categoriesResponse = await categoryAPI.getCategories().catch(() => []);
         setCategories(categoriesResponse || []);
-        
+
         // Build category filter options
         const categoryOptions = (categoriesResponse || []).map((cat: CategoryType) => ({
           slug: cat.slug,
           name: cat.name,
           count: 0, // Will be updated after product fetch
         }));
-        
+
         // Prepare query parameters for unified product API
         const params: any = { page: currentPage };
-        
+
         if (filters.categories.length > 0) params.category = filters.categories;
         if (filters.subcategories.length > 0) params.sub_category = filters.subcategories;
         if (filters.priceRange) params.price = filters.priceRange;
@@ -79,45 +79,45 @@ const ProductsPage = () => {
 
         // Fetch products
         const productsResponse = await productAPI.getProducts(params);
-        
+
         const productData = productsResponse.data || productsResponse;
         setProducts(productData.data || productData);
         setTotalPages(productData.last_page || 1);
         setTotalProducts(productData.total || (productData.data ? productData.data.length : productData.length));
-        
+
         // Fetch subcategories for the selected category
         if (categoryParam) {
           try {
             const subcats = await categoryAPI.getSubcategories(categoryParam);
-            setSubcategories(subcats || []);
-            
+            // setSubcategories(subcats || []); // Removed unused state update
+
             // Build subcategory filter options
             const subcategoryOptions = (subcats || []).map((sub: any) => ({
               slug: sub.slug,
               name: sub.name,
               category_slug: categoryParam,
             }));
-            
+
             setAvailableFilters(prev => ({
               ...prev,
               subcategories: subcategoryOptions,
             }));
           } catch (error) {
             console.error('Error fetching subcategories:', error);
-            setSubcategories([]);
+            // setSubcategories([]); // Removed unused state update
             setAvailableFilters(prev => ({
               ...prev,
               subcategories: [],
             }));
           }
         } else {
-          setSubcategories([]);
+          // setSubcategories([]); // Removed unused state update
           setAvailableFilters(prev => ({
             ...prev,
             subcategories: [],
           }));
         }
-        
+
         // Extract other filter options from products
         const colors = new Set<string>();
         const fabrics = new Set<string>();
@@ -129,7 +129,7 @@ const ProductsPage = () => {
           if (product.fabric) fabrics.add(product.fabric);
           if (product.occasion) occasions.add(product.occasion);
         });
-        
+
         setAvailableFilters(prev => ({
           ...prev,
           categories: categoryOptions,
@@ -157,7 +157,7 @@ const ProductsPage = () => {
       fabrics: filters.fabrics,
       occasions: filters.occasions,
     };
-    
+
     setFilters(newFilters);
   }, [categoryParam, subcategoryParam]);
 
@@ -178,10 +178,10 @@ const ProductsPage = () => {
       ...prev,
       [filterType]: value,
     }));
-    
+
     // Update URL parameters based on filter type
     const newParams = new URLSearchParams(searchParams);
-    
+
     switch (filterType) {
       case 'categories':
         if (Array.isArray(value) && value.length > 0) {
@@ -215,7 +215,7 @@ const ProductsPage = () => {
       default:
         break;
     }
-    
+
     setSearchParams(newParams);
   };
 
@@ -229,7 +229,7 @@ const ProductsPage = () => {
       fabrics: [],
       occasions: [],
     });
-    
+
     // Preserve search parameter but clear filters
     const newParams = new URLSearchParams();
     if (searchParams.get('search')) {
@@ -253,7 +253,7 @@ const ProductsPage = () => {
   // Build breadcrumb items
   const breadcrumbItems = useMemo(() => {
     const items: { label: string; href?: string }[] = [{ label: 'Products', href: '/products' }];
-    
+
     if (filters.categories.length === 1) {
       const cat = categories.find(c => c.slug === filters.categories[0]);
       if (cat) {
@@ -262,7 +262,7 @@ const ProductsPage = () => {
     } else if (searchQuery) {
       items.push({ label: `Search: "${searchQuery}"` });
     }
-    
+
     return items;
   }, [filters.categories, categories, searchQuery]);
 
@@ -309,11 +309,10 @@ const ProductsPage = () => {
           <button
             key={page}
             onClick={() => setCurrentPage(page)}
-            className={`w-10 h-10 rounded-lg font-medium transition-colors ${
-              currentPage === page
-                ? 'bg-primary text-white'
-                : 'border border-gray-300 hover:bg-gray-50'
-            }`}
+            className={`w-10 h-10 rounded-lg font-medium transition-colors ${currentPage === page
+              ? 'bg-primary text-white'
+              : 'border border-gray-300 hover:bg-gray-50'
+              }`}
           >
             {page}
           </button>
@@ -410,22 +409,20 @@ const ProductsPage = () => {
               <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
                 <button
                   onClick={() => setViewMode('grid')}
-                  className={`p-2 rounded-md transition-colors ${
-                    viewMode === 'grid'
-                      ? 'bg-white text-primary shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
+                  className={`p-2 rounded-md transition-colors ${viewMode === 'grid'
+                    ? 'bg-white text-primary shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                    }`}
                   title="Grid view"
                 >
                   <Grid3X3 size={18} />
                 </button>
                 <button
                   onClick={() => setViewMode('list')}
-                  className={`p-2 rounded-md transition-colors ${
-                    viewMode === 'list'
-                      ? 'bg-white text-primary shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
+                  className={`p-2 rounded-md transition-colors ${viewMode === 'list'
+                    ? 'bg-white text-primary shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                    }`}
                   title="List view"
                 >
                   <List size={18} />
@@ -595,7 +592,7 @@ const ProductsPage = () => {
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-lg font-bold text-primary">₹{product.price?.toLocaleString()}</span>
-                        {product.discount && product.discount > 0 && (
+                        {(product.discount || 0) > 0 && typeof product.discount !== 'undefined' && product.price !== undefined && (
                           <>
                             <span className="text-sm text-gray-400 line-through">
                               ₹{Math.round(product.price / (1 - product.discount / 100)).toLocaleString()}
@@ -626,7 +623,7 @@ const ProductsPage = () => {
             className="fixed inset-0 bg-black/50 z-40 lg:hidden"
             onClick={() => setShowMobileFilters(false)}
           />
-          
+
           {/* Panel */}
           <div className="fixed inset-y-0 right-0 w-full max-w-sm bg-white z-50 lg:hidden transform transition-transform">
             <ProductFiltersAdvanced
